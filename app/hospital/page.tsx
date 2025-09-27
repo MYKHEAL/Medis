@@ -2,14 +2,16 @@
 
 import React, { useState } from 'react';
 import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
-import { Building2, FileText, Plus, Upload, ArrowLeft, Users, Clock, Shield, Activity, CheckCircle } from 'lucide-react';
+import { Building2, FileText, Plus, Upload, ArrowLeft, Users, Clock, Shield, Activity, CheckCircle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMedicalRecordsContract } from '@/lib/contract-utils';
+import { useUserRole } from '@/lib/role-utils';
 import { useIPFS } from '@/lib/ipfs-utils';
 import FileUpload from '@/components/FileUpload';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { gradients, animations, shadows } from '@/lib/ui-utils';
 
@@ -24,7 +26,8 @@ interface IssuedRecord {
 
 export default function HospitalDashboard() {
   const account = useCurrentAccount();
-  const { issueRecord, isRegisteredHospital } = useMedicalRecordsContract();
+  const userRole = useUserRole();
+  const { issueRecord } = useMedicalRecordsContract();
   const { uploadMedicalRecord } = useIPFS();
   
   const [recordForm, setRecordForm] = useState({
@@ -34,25 +37,9 @@ export default function HospitalDashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isIssuing, setIsIssuing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [isRegistered, setIsRegistered] = useState(false);
   const [issuedRecords, setIssuedRecords] = useState<IssuedRecord[]>([]);
 
-  // Check if hospital is registered
-  React.useEffect(() => {
-    const checkRegistration = async () => {
-      if (account) {
-        try {
-          const registryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID || '0x0';
-          const result = await isRegisteredHospital(registryId, account.address);
-          setIsRegistered(true); // For demo purposes, assume registered
-        } catch (error) {
-          console.error('Error checking registration:', error);
-          setIsRegistered(false);
-        }
-      }
-    };
-    checkRegistration();
-  }, [account, isRegisteredHospital]);
+
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
@@ -156,7 +143,34 @@ export default function HospitalDashboard() {
     );
   }
 
-  if (!isRegistered) {
+  // Show loading state while checking user role
+  if (userRole.isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-900 relative overflow-hidden flex items-center justify-center">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+        </div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative z-10"
+        >
+          <Card variant="glass" className="max-w-md w-full p-8 text-center">
+            <LoadingSpinner size="lg" className="mx-auto mb-6" />
+            <h2 className="text-2xl font-bold text-white mb-4">Verifying Access</h2>
+            <p className="text-slate-300">
+              Checking your hospital registration status...
+            </p>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (!userRole.isHospital) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 relative overflow-hidden flex items-center justify-center">
         {/* Animated background elements */}
@@ -171,22 +185,37 @@ export default function HospitalDashboard() {
           transition={{ duration: 0.6 }}
           className="relative z-10"
         >
-          <Card variant="glass" className="max-w-md w-full p-8 text-center">
+          <Card variant="glass" className="max-w-lg w-full p-8 text-center bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/20">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             >
-              <Building2 className="w-16 h-16 text-red-400 mx-auto mb-4" />
+              <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
             </motion.div>
             <h2 className="text-2xl font-bold text-white mb-4">Hospital Not Registered</h2>
             <p className="text-slate-300 mb-6">
               Your wallet address is not registered as a hospital. Please contact the admin to register your hospital.
             </p>
-            <Link href="/" className="inline-flex items-center justify-center h-11 px-6 text-base rounded-xl font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Return to Home
-            </Link>
+            <div className="space-y-4 mb-8">
+              <div className="bg-white/5 rounded-lg p-4 text-sm">
+                <p className="text-gray-400 mb-2">Your connected address:</p>
+                <p className="text-white font-mono break-all">{account.address}</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-4 text-sm">
+                <p className="text-gray-400 mb-2">Contact admin for registration:</p>
+                <p className="text-white font-mono break-all">0x1752472acb1d642828805f8276710ce57b82c471a429f8af1a889d487f5cf29e</p>
+              </div>
+            </div>
+            <div className="flex gap-4 justify-center">
+              <Link href="/">
+                <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-white/10">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Return to Home
+                </Button>
+              </Link>
+              <ConnectButton />
+            </div>
           </Card>
         </motion.div>
       </div>
