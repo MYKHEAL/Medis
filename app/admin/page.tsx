@@ -23,23 +23,42 @@ interface HospitalRegistration {
 
 export default function AdminDashboard() {
   const account = useCurrentAccount();
-  const { registerHospital } = useMedicalRecordsContract();
+  const { registerHospital, isRegisteredHospital } = useMedicalRecordsContract();
   
   const [hospitalForm, setHospitalForm] = useState({
     name: '',
     address: '',
   });
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isCheckingRegistration, setIsCheckingRegistration] = useState(false);
   const [registeredHospitals, setRegisteredHospitals] = useState<HospitalRegistration[]>([]);
+  const [registrationError, setRegistrationError] = useState<string>('');
 
   const handleRegisterHospital = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!account || !hospitalForm.name || !hospitalForm.address) return;
 
     setIsRegistering(true);
+    setRegistrationError('');
+    
     try {
-      const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID || '0x0';
       const registryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID || '0x0';
+      
+      // First check if hospital is already registered
+      setIsCheckingRegistration(true);
+      try {
+        const isAlreadyRegistered = await isRegisteredHospital(registryId, hospitalForm.address);
+        if (isAlreadyRegistered) {
+          setRegistrationError(`Hospital with address ${hospitalForm.address} is already registered in the system.`);
+          return;
+        }
+      } catch (checkError) {
+        console.warn('Could not verify existing registration, proceeding with registration:', checkError);
+      } finally {
+        setIsCheckingRegistration(false);
+      }
+
+      const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID || '0x0';
       const clockId = '0x6';
 
       await registerHospital(
@@ -57,8 +76,36 @@ export default function AdminDashboard() {
       };
       setRegisteredHospitals([...registeredHospitals, newHospital]);
       setHospitalForm({ name: '', address: '' });
-    } catch (error) {
+      
+      // Show success message
+      alert(`Hospital "${hospitalForm.name}" registered successfully!`);
+      
+    } catch (error: any) {
       console.error('Error registering hospital:', error);
+      
+      // Handle specific contract errors
+      if (error.message && error.message.includes('EHospitalAlreadyRegistered')) {
+        setRegistrationError('This hospital address is already registered in the system.');
+      } else if (error.message && error.message.includes('MoveAbort')) {
+        const match = error.message.match(/MoveAbort.*?(\d+)/);
+        if (match) {
+          const errorCode = match[1];
+          switch (errorCode) {
+            case '1':
+              setRegistrationError('Access denied: Admin privileges required.');
+              break;
+            case '3':
+              setRegistrationError('Hospital address is already registered.');
+              break;
+            default:
+              setRegistrationError(`Registration failed with error code: ${errorCode}`);
+          }
+        } else {
+          setRegistrationError('Registration failed due to a smart contract error.');
+        }
+      } else {
+        setRegistrationError('Failed to register hospital. Please check the address format and try again.');
+      }
     } finally {
       setIsRegistering(false);
     }
@@ -128,6 +175,49 @@ export default function AdminDashboard() {
       </motion.header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Important Notice Card */}
+        <motion.div 
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card variant="glass" className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-start">
+                <div className={cn("p-3 rounded-2xl mr-4 flex-shrink-0", "bg-gradient-to-br from-blue-500 to-cyan-600", shadows.glow)}>
+                  <ShieldCheckIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-white mb-2">Admin Status</h3>
+                  <p className="text-blue-200 mb-3">
+                    Your address <code className="bg-blue-900/30 px-2 py-1 rounded text-sm">{formatAddress(account.address)}</code> is the system administrator.
+                  </p>
+                  <div className="bg-blue-900/20 rounded-lg p-3 mb-3">
+                    <p className="text-blue-300 text-sm font-medium mb-1">💡 Quick Setup:</p>
+                    <p className="text-blue-200 text-sm mb-2">
+                      To also function as a hospital, register your own address below.
+                    </p>
+                    <Button
+                      onClick={() => setHospitalForm({ name: 'Admin Hospital', address: account.address })}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Auto-fill My Address
+                    </Button>
+                  </div>
+                  <div className="bg-amber-900/20 rounded-lg p-3">
+                    <p className="text-amber-300 text-sm font-medium mb-1">⚠️ Important:</p>
+                    <p className="text-amber-200 text-sm">
+                      If you get "already registered" errors, it means the address is already in the system.
+                      Use different addresses to register other hospitals.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
         {/* Stats Cards */}
         <motion.div 
           className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
@@ -199,6 +289,18 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleRegisterHospital} className="space-y-6">
+                  {registrationError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-red-500/20 border border-red-500/50 rounded-xl p-4"
+                    >
+                      <p className="text-red-300 text-sm">
+                        <strong>Registration Error:</strong> {registrationError}
+                      </p>
+                    </motion.div>
+                  )}
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-2">
                       Hospital Name
@@ -206,7 +308,10 @@ export default function AdminDashboard() {
                     <input
                       type="text"
                       value={hospitalForm.name}
-                      onChange={(e) => setHospitalForm({ ...hospitalForm, name: e.target.value })}
+                      onChange={(e) => {
+                        setHospitalForm({ ...hospitalForm, name: e.target.value });
+                        if (registrationError) setRegistrationError('');
+                      }}
                       className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                       placeholder="Enter hospital name"
                       required
@@ -219,20 +324,31 @@ export default function AdminDashboard() {
                     <input
                       type="text"
                       value={hospitalForm.address}
-                      onChange={(e) => setHospitalForm({ ...hospitalForm, address: e.target.value })}
+                      onChange={(e) => {
+                        setHospitalForm({ ...hospitalForm, address: e.target.value });
+                        if (registrationError) setRegistrationError('');
+                      }}
                       className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                       placeholder="0x..."
                       required
                     />
+                    <p className="text-gray-400 text-xs mt-2">
+                      Current admin address: {formatAddress(account.address)}
+                    </p>
                   </div>
                   <Button
                     type="submit"
-                    loading={isRegistering}
-                    disabled={!hospitalForm.name || !hospitalForm.address}
+                    loading={isRegistering || isCheckingRegistration}
+                    disabled={!hospitalForm.name || !hospitalForm.address || isRegistering || isCheckingRegistration}
                     className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
                     size="lg"
                   >
-                    {isRegistering ? 'Registering Hospital...' : 'Register Hospital'}
+                    {isCheckingRegistration
+                      ? 'Checking Registration...' 
+                      : isRegistering
+                      ? 'Registering Hospital...'
+                      : 'Register Hospital'
+                    }
                   </Button>
                 </form>
               </CardContent>

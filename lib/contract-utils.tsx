@@ -136,7 +136,7 @@ export function useMedicalRecordsContract() {
     }
   };
 
-  const isRegisteredHospital = async (registryId: string, hospitalAddress: string) => {
+  const isRegisteredHospital = async (registryId: string, hospitalAddress: string): Promise<boolean> => {
     try {
       const result = await client.devInspectTransactionBlock({
         transactionBlock: (() => {
@@ -152,10 +152,26 @@ export function useMedicalRecordsContract() {
         })(),
         sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
       });
-      return result;
+      
+      // Parse the boolean result from the smart contract
+      if (result.results && result.results.length > 0 && 
+          result.results[0].returnValues && result.results[0].returnValues.length > 0) {
+        const returnValue = result.results[0].returnValues[0] as any;
+        console.log('Hospital registration check result:', returnValue);
+        
+        // Handle different possible return formats
+        if (Array.isArray(returnValue)) {
+          return returnValue.length > 0 && (returnValue[0] === 1 || returnValue[0] === true);
+        } else {
+          return returnValue === 1 || returnValue === true;
+        }
+      }
+      
+      return false;
     } catch (error) {
       console.error('Error checking hospital registration:', error);
-      throw error;
+      // In case of error, assume not registered to be safe
+      return false;
     }
   };
 

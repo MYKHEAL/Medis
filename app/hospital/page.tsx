@@ -43,8 +43,12 @@ export default function HospitalDashboard() {
       if (account) {
         try {
           const registryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID || '0x0';
+          console.log('🏥 Checking hospital registration for:', account.address);
+          
           const result = await isRegisteredHospital(registryId, account.address);
-          setIsRegistered(true); // For demo purposes, assume registered
+          console.log('🏥 Hospital registration result:', result);
+          
+          setIsRegistered(result);
         } catch (error) {
           console.error('Error checking registration:', error);
           setIsRegistered(false);
@@ -105,9 +109,32 @@ export default function HospitalDashboard() {
       setRecordForm({ patientAddress: '', description: '' });
       setSelectedFile(null);
       alert('Medical record issued successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error issuing record:', error);
-      alert('Failed to issue medical record. Please try again.');
+      
+      let errorMessage = 'Failed to issue medical record. Please try again.';
+      
+      // Handle specific contract errors
+      if (error.message && error.message.includes('MoveAbort')) {
+        const match = error.message.match(/MoveAbort.*?(\d+)/);
+        if (match) {
+          const errorCode = match[1];
+          switch (errorCode) {
+            case '2':
+              errorMessage = 'Hospital not registered: Your address is not registered as a hospital. Please contact the admin to register your hospital first.';
+              break;
+            case '1':
+              errorMessage = 'Permission denied: Only registered hospitals can issue medical records.';
+              break;
+            default:
+              errorMessage = `Transaction failed with error code: ${errorCode}. Please check your permissions and try again.`;
+          }
+        }
+      } else if (error.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsIssuing(false);
       setIsUploading(false);
@@ -180,9 +207,18 @@ export default function HospitalDashboard() {
               <Building2 className="w-16 h-16 text-red-400 mx-auto mb-4" />
             </motion.div>
             <h2 className="text-2xl font-bold text-white mb-4">Hospital Not Registered</h2>
-            <p className="text-slate-300 mb-6">
-              Your wallet address is not registered as a hospital. Please contact the admin to register your hospital.
+            <p className="text-slate-300 mb-4">
+              Your wallet address <code className="bg-red-900/30 px-2 py-1 rounded text-xs">{account.address.slice(0, 6)}...{account.address.slice(-4)}</code> is not registered as a hospital.
             </p>
+            <div className="bg-red-900/20 rounded-lg p-4 mb-6 text-left">
+              <p className="text-red-300 font-semibold mb-2">To get registered:</p>
+              <ol className="text-red-200 text-sm space-y-1 list-decimal list-inside">
+                <li>Contact the system administrator</li>
+                <li>Provide your wallet address: <code className="bg-red-900/30 px-1 rounded text-xs">{account.address}</code></li>
+                <li>Wait for admin to register your hospital in the system</li>
+                <li>Refresh this page after registration</li>
+              </ol>
+            </div>
             <Link href="/" className="inline-flex items-center justify-center h-11 px-6 text-base rounded-xl font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Return to Home
