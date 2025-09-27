@@ -70,6 +70,8 @@ export default function HospitalDashboard() {
     setIsUploading(true);
 
     try {
+      console.log('🏥 Starting medical record issuance...');
+      
       // Upload file to IPFS
       const { ipfsHash } = await uploadMedicalRecord(
         selectedFile,
@@ -78,6 +80,7 @@ export default function HospitalDashboard() {
       );
       
       setIsUploading(false);
+      console.log('📋 File uploaded to IPFS:', ipfsHash);
 
       // Issue record on blockchain
       const registryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID || '0x0';
@@ -85,6 +88,7 @@ export default function HospitalDashboard() {
       const clockId = '0x6'; // Sui clock object ID
       const timestamp = Math.floor(Date.now() / 1000);
 
+      console.log('📦 Issuing record on blockchain...');
       await issueRecord(
         registryId,
         recordRegistryId,
@@ -108,7 +112,10 @@ export default function HospitalDashboard() {
       // Reset form
       setRecordForm({ patientAddress: '', description: '' });
       setSelectedFile(null);
+      
+      console.log('✅ Medical record issued successfully!');
       alert('Medical record issued successfully!');
+      
     } catch (error: any) {
       console.error('Error issuing record:', error);
       
@@ -122,6 +129,7 @@ export default function HospitalDashboard() {
           switch (errorCode) {
             case '2':
               errorMessage = 'Hospital not registered: Your address is not registered as a hospital. Please contact the admin to register your hospital first.';
+              setIsRegistered(false); // Update registration status
               break;
             case '1':
               errorMessage = 'Permission denied: Only registered hospitals can issue medical records.';
@@ -130,6 +138,8 @@ export default function HospitalDashboard() {
               errorMessage = `Transaction failed with error code: ${errorCode}. Please check your permissions and try again.`;
           }
         }
+      } else if (error.message && error.message.includes('timeout')) {
+        errorMessage = 'Transaction timed out. Please check your wallet connection and try again.';
       } else if (error.message) {
         errorMessage = `Error: ${error.message}`;
       }

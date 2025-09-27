@@ -38,45 +38,38 @@ export default function PatientDashboard() {
       
       setIsLoading(true);
       try {
+        console.log('📋 Loading medical records for patient:', account.address);
         const ownedObjects = await getOwnedRecords(account.address);
         
-        // Parse the medical records (mock data for demo)
-        const records: MedicalRecord[] = [
-          {
-            id: '1',
-            hospitalAddress: '0x123...abc',
-            hospitalName: 'General Hospital',
-            fileName: 'Blood_Test_Results.pdf',
-            ipfsHash: 'QmTest123...',
-            timestamp: Date.now() - 86400000, // 1 day ago
-            createdAt: new Date(Date.now() - 86400000),
-            description: 'Blood work and complete metabolic panel'
-          },
-          {
-            id: '2',
-            hospitalAddress: '0x456...def',
-            hospitalName: 'Cardiology Center',
-            fileName: 'ECG_Report.pdf',
-            ipfsHash: 'QmTest456...',
-            timestamp: Date.now() - 172800000, // 2 days ago
-            createdAt: new Date(Date.now() - 172800000),
-            description: 'Electrocardiogram and heart rhythm analysis'
-          },
-          {
-            id: '3',
-            hospitalAddress: '0x789...ghi',
-            hospitalName: 'Radiology Clinic',
-            fileName: 'Chest_X-Ray.jpg',
-            ipfsHash: 'QmTest789...',
-            timestamp: Date.now() - 604800000, // 1 week ago
-            createdAt: new Date(Date.now() - 604800000),
-            description: 'Chest X-ray for respiratory evaluation'
-          }
-        ];
+        console.log('📋 Owned medical record objects:', ownedObjects);
         
-        setMedicalRecords(records);
+        // Parse real medical record objects from blockchain
+        const records: MedicalRecord[] = ownedObjects.map((obj: any, index: number) => {
+          const content = obj.data?.content?.fields;
+          
+          return {
+            id: obj.data?.objectId || `record-${index}`,
+            hospitalAddress: content?.hospital_address || 'Unknown Hospital',
+            hospitalName: `Hospital ${content?.hospital_address?.slice(0, 6)}...${content?.hospital_address?.slice(-4)}` || 'Unknown Hospital',
+            fileName: `Medical_Record_${index + 1}.pdf`,
+            ipfsHash: content?.ipfs_hash || 'QmPlaceholder...',
+            timestamp: parseInt(content?.timestamp) || Date.now(),
+            createdAt: new Date(parseInt(content?.created_at) || Date.now()),
+            description: 'Medical record issued by registered hospital'
+          };
+        });
+        
+        // If no real records, show helpful message
+        if (records.length === 0) {
+          console.log('📋 No medical records found for this patient');
+          setMedicalRecords([]);
+        } else {
+          console.log('📋 Loaded medical records:', records);
+          setMedicalRecords(records);
+        }
       } catch (error) {
         console.error('Error loading medical records:', error);
+        setMedicalRecords([]); // Set empty array on error
       } finally {
         setIsLoading(false);
       }
