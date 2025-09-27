@@ -206,6 +206,57 @@ export default function Home() {
 
         {account ? (
           <>
+            {/* Temporary Debug Panel for Role Detection */}
+            <div className="mb-8 max-w-4xl mx-auto">
+              <Card className="bg-yellow-900/20 border-yellow-500/50">
+                <CardContent className="p-4">
+                  <h3 className="text-yellow-400 font-semibold mb-2">🐛 Debug: Role Detection Status</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-400">Address:</p>
+                      <p className="text-white font-mono text-xs">{account.address}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Loading:</p>
+                      <p className={userRole.isLoading ? 'text-yellow-400' : 'text-green-400'}>
+                        {userRole.isLoading ? 'Yes' : 'No'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Has Role:</p>
+                      <p className={userRole.hasRole ? 'text-green-400' : 'text-red-400'}>
+                        {userRole.hasRole ? 'Yes' : 'No'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Available Routes:</p>
+                      <p className="text-white">{availableRoutes.length}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
+                    <div className={`p-2 rounded ${userRole.isAdmin ? 'bg-purple-900/50' : 'bg-gray-800'}`}>
+                      <p className="text-gray-400">Admin:</p>
+                      <p className={userRole.isAdmin ? 'text-purple-400' : 'text-gray-300'}>
+                        {userRole.isAdmin ? 'YES' : 'NO'}
+                      </p>
+                    </div>
+                    <div className={`p-2 rounded ${userRole.isHospital ? 'bg-emerald-900/50' : 'bg-gray-800'}`}>
+                      <p className="text-gray-400">Hospital:</p>
+                      <p className={userRole.isHospital ? 'text-emerald-400' : 'text-gray-300'}>
+                        {userRole.isHospital ? 'YES' : 'NO'}
+                      </p>
+                    </div>
+                    <div className={`p-2 rounded ${userRole.isPatient ? 'bg-pink-900/50' : 'bg-gray-800'}`}>
+                      <p className="text-gray-400">Patient:</p>
+                      <p className={userRole.isPatient ? 'text-pink-400' : 'text-gray-300'}>
+                        {userRole.isPatient ? 'YES' : 'NO'}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-yellow-300 text-xs mt-3">💡 Check browser console (F12) for detailed logs</p>
+                </CardContent>
+              </Card>
+            </div>
             
             {userRole.isLoading ? (
               // Loading state while checking user role

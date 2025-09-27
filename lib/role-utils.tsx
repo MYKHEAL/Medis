@@ -51,31 +51,46 @@ export function useUserRole(): UserRole {
       };
 
       try {
+        // Debug environment variables
+        console.log('🗺️ Environment check:');
+        console.log('- Package ID:', process.env.NEXT_PUBLIC_PACKAGE_ID);
+        console.log('- Admin Cap ID:', process.env.NEXT_PUBLIC_ADMIN_CAP_ID);
+        console.log('- Hospital Registry ID:', process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID);
+        
         // Check if user is admin by checking if they own the AdminCap
         const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID;
         console.log('🔧 Admin Cap ID:', adminCapId);
         
         if (adminCapId && adminCapId !== '0x0') {
           try {
+            console.log('🔍 Fetching AdminCap object...');
             const adminCapObject = await client.getObject({
               id: adminCapId,
-              options: { showOwner: true },
+              options: { showOwner: true, showContent: true },
             });
             
             console.log('👑 Admin Cap Object:', adminCapObject);
             
-            if (adminCapObject.data?.owner && 
-                typeof adminCapObject.data.owner === 'object' &&
-                'AddressOwner' in adminCapObject.data.owner && 
-                adminCapObject.data.owner.AddressOwner === account.address) {
-              roles.isAdmin = true;
-              console.log('✅ User is ADMIN');
+            if (adminCapObject.data?.owner) {
+              console.log('👑 Admin Cap Owner details:', adminCapObject.data.owner);
+              console.log('👤 Current user address:', account.address);
+              
+              if (typeof adminCapObject.data.owner === 'object' &&
+                  'AddressOwner' in adminCapObject.data.owner && 
+                  adminCapObject.data.owner.AddressOwner === account.address) {
+                roles.isAdmin = true;
+                console.log('✅ User is ADMIN - AdminCap owner match!');
+              } else {
+                console.log('❌ User is NOT admin. Expected:', account.address, 'Got:', adminCapObject.data.owner);
+              }
             } else {
-              console.log('❌ User is NOT admin. Owner:', adminCapObject.data?.owner);
+              console.log('❌ Admin Cap has no owner information');
             }
           } catch (error) {
             console.log('⚠️ Error checking admin role:', error);
           }
+        } else {
+          console.log('❌ No Admin Cap ID configured');
         }
 
         // Check if user is a registered hospital
@@ -163,19 +178,20 @@ export function useUserRole(): UserRole {
 
         // If user has no specific role but is connected, they can be considered a potential patient
         if (!roles.isAdmin && !roles.isHospital && !roles.isPatient) {
-          // Only set as patient if explicitly has medical records or no other roles detected
-          // Don't default to patient for admin/hospital users
-          console.log('🏥 User has no detected roles, defaulting to potential patient');
+          // For any connected wallet that doesn't have specific roles, default to patient
+          roles.isPatient = true;
+          console.log('🏥 User has no detected roles, defaulting to patient');
         }
 
         console.log('🎭 Final roles:', roles);
 
         if (isMounted) {
+          // Always consider user as having a role if wallet is connected
           const hasRole = roles.isAdmin || roles.isHospital || roles.isPatient;
           setRole({
             ...roles,
             isLoading: false,
-            hasRole,
+            hasRole: true, // Always true for connected wallets
           });
         }
       } catch (error) {
