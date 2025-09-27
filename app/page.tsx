@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { FastConnectButton } from '@/components/ui/FastConnectButton';
 import { cn, gradients, shadows } from '@/lib/ui-utils';
 
 const containerVariants = {
@@ -100,7 +101,7 @@ export default function Home() {
                 <p className="text-gray-400 text-sm">Decentralized Medical Records</p>
               </div>
             </motion.div>
-            <ConnectButton />
+            <FastConnectButton />
           </div>
         </div>
       </motion.header>
@@ -283,7 +284,7 @@ export default function Home() {
                 <CardDescription className="text-gray-300 mb-8">
                   Please connect your Sui wallet to access the decentralized medical records system
                 </CardDescription>
-                <ConnectButton />
+                <FastConnectButton />
               </CardContent>
             </Card>
           </motion.div>
