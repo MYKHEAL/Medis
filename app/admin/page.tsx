@@ -61,13 +61,24 @@ export default function AdminDashboard() {
       const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID || '0x0';
       const clockId = '0x6';
 
-      await registerHospital(
+      console.log('🔍 Admin dashboard: Starting registration...');
+      
+      // Add timeout handling for the registration
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Registration timeout: Please check your wallet and try again.'));
+        }, 45000); // 45 second timeout
+      });
+      
+      const registrationPromise = registerHospital(
         adminCapId,
         registryId,
         hospitalForm.address,
         hospitalForm.name,
         clockId
       );
+      
+      await Promise.race([registrationPromise, timeoutPromise]);
 
       const newHospital: HospitalRegistration = {
         name: hospitalForm.name,
@@ -83,8 +94,10 @@ export default function AdminDashboard() {
     } catch (error: any) {
       console.error('Error registering hospital:', error);
       
-      // Handle specific contract errors
-      if (error.message && error.message.includes('EHospitalAlreadyRegistered')) {
+      // Handle specific error types
+      if (error.message && error.message.includes('timeout')) {
+        setRegistrationError('Registration timed out. Please check your wallet connection and try again.');
+      } else if (error.message && error.message.includes('EHospitalAlreadyRegistered')) {
         setRegistrationError('This hospital address is already registered in the system.');
       } else if (error.message && error.message.includes('MoveAbort')) {
         const match = error.message.match(/MoveAbort.*?(\d+)/);
@@ -104,10 +117,11 @@ export default function AdminDashboard() {
           setRegistrationError('Registration failed due to a smart contract error.');
         }
       } else {
-        setRegistrationError('Failed to register hospital. Please check the address format and try again.');
+        setRegistrationError(error.message || 'Failed to register hospital. Please check your wallet connection and try again.');
       }
     } finally {
       setIsRegistering(false);
+      setIsCheckingRegistration(false);
     }
   };
 
@@ -201,9 +215,17 @@ export default function AdminDashboard() {
                     <Button
                       onClick={() => setHospitalForm({ name: 'Admin Hospital', address: account.address })}
                       size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-blue-600 hover:bg-blue-700 text-white mr-2"
                     >
                       Auto-fill My Address
+                    </Button>
+                    <Button
+                      onClick={() => setHospitalForm({ name: '', address: '' })}
+                      size="sm"
+                      variant="outline"
+                      className="text-blue-300 border-blue-500/50 hover:bg-blue-900/20"
+                    >
+                      Clear Form
                     </Button>
                   </div>
                   <div className="bg-amber-900/20 rounded-lg p-3">
@@ -298,6 +320,14 @@ export default function AdminDashboard() {
                       <p className="text-red-300 text-sm">
                         <strong>Registration Error:</strong> {registrationError}
                       </p>
+                      {registrationError.includes('already registered') && (
+                        <div className="mt-3 bg-red-900/20 rounded-lg p-3">
+                          <p className="text-red-300 text-xs font-semibold mb-1">💡 Suggestion:</p>
+                          <p className="text-red-200 text-xs">
+                            This address is already in the system. Try a different hospital address or check if this hospital is already listed below.
+                          </p>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                   
@@ -350,6 +380,17 @@ export default function AdminDashboard() {
                       : 'Register Hospital'
                     }
                   </Button>
+                  
+                  {/* Debug/Help Section */}
+                  <div className="mt-4 p-3 bg-gray-800/50 rounded-lg">
+                    <p className="text-gray-400 text-xs mb-2">📝 Debug Info:</p>
+                    <div className="space-y-1 text-xs">
+                      <p className="text-gray-500">Admin Cap: {process.env.NEXT_PUBLIC_ADMIN_CAP_ID?.slice(0, 10)}...{process.env.NEXT_PUBLIC_ADMIN_CAP_ID?.slice(-6)}</p>
+                      <p className="text-gray-500">Registry: {process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID?.slice(0, 10)}...{process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID?.slice(-6)}</p>
+                      <p className="text-gray-500">Package: {process.env.NEXT_PUBLIC_PACKAGE_ID?.slice(0, 10)}...{process.env.NEXT_PUBLIC_PACKAGE_ID?.slice(-6)}</p>
+                    </div>
+                    <p className="text-gray-500 text-xs mt-2">💡 If stuck, check browser console (F12) for details</p>
+                  </div>
                 </form>
               </CardContent>
             </Card>

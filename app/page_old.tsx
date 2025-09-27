@@ -204,130 +204,182 @@ export default function Home() {
           )}
         </motion.div>
 
-        {/* User Dashboard Section */}
         {account ? (
-          userRole.isLoading ? (
-            // Loading state while checking user role
-            <motion.div 
-              className="text-center py-20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <Card variant="glass" className="max-w-md mx-auto bg-white/5">
-                <CardContent className="text-center py-12">
-                  <LoadingSpinner size="lg" className="mx-auto mb-6" />
-                  <CardTitle className="text-white mb-4">
-                    Loading Your Dashboard
-                  </CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Checking your role and permissions...
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ) : availableRoutes.length > 0 ? (
-            // Show available dashboards based on user role
-            <>
-              <motion.div 
-                className="text-center mb-12"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <h3 className="text-2xl font-bold text-white mb-2">
-                  Welcome, {getRoleDisplayName(userRole)}
-                </h3>
-                <p className="text-gray-300">
-                  Access your {availableRoutes.length > 1 ? 'dashboards' : 'dashboard'} below
-                </p>
-              </motion.div>
-              
-              <motion.div 
-                className={`grid gap-8 mb-20 ${availableRoutes.length === 1 ? 'max-w-md mx-auto' : availableRoutes.length === 2 ? 'md:grid-cols-2 max-w-4xl mx-auto' : 'md:grid-cols-3'}`}
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                {availableRoutes.map((route, index) => {
-                  const IconComponent = getIconComponent(route.path);
-                  const colorClasses = getColorClasses(route.color);
-                  
-                  return (
-                    <motion.div key={route.path} variants={fastItemVariants}>
-                      <Link href={route.path} className="group block">
-                        <Card 
-                          variant="glass" 
-                          hover 
-                          className={`${colorClasses.border} transition-all duration-300 ${colorClasses.bg}`}
-                        >
-                          <CardHeader>
-                            <div className="flex items-center justify-between mb-4">
-                              <div className={cn("p-4 rounded-2xl", `bg-gradient-to-br ${route.gradient}`, shadows.glow)}>
-                                <IconComponent className="w-8 h-8 text-white" />
-                              </div>
-                              <ArrowRightIcon className={`w-5 h-5 text-gray-400 ${colorClasses.hover} group-hover:translate-x-1 transition-all`} />
-                            </div>
-                            <CardTitle className={`text-white ${colorClasses.text} transition-colors`}>
-                              {route.name}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <CardDescription className="text-gray-300 mb-4">
-                              {route.description}
-                            </CardDescription>
-                            <div className={`flex items-center ${colorClasses.accent} text-sm font-medium`}>
-                              <span>Access Portal</span>
-                              <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            </>
-          ) : (
-            // Show message for users without any role
-            <motion.div 
-              className="text-center py-20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <Card variant="glass" className="max-w-lg mx-auto bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
-                <CardContent className="text-center py-12">
-                  <motion.div
-                    animate={floatingAnimation}
-                    className="mb-6"
-                  >
-                    <DocumentTextIcon className="w-16 h-16 text-amber-400 mx-auto" />
-                  </motion.div>
-                  <CardTitle className="text-white mb-4">
-                    No Access Permissions
-                  </CardTitle>
-                  <CardDescription className="text-gray-300 mb-6">
-                    Your wallet address is not registered in the system. Please contact:
-                  </CardDescription>
-                  <div className="space-y-3 text-sm">
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-gray-400 mb-1">For Hospital Registration:</p>
-                      <p className="text-white font-mono text-xs break-all">
-                        Admin: 0x1752472acb1d642828805f8276710ce57b82c471a429f8af1a889d487f5cf29e
+          <>
+            {/* Temporary Debug Panel for Role Detection */}
+            <div className="mb-8 max-w-4xl mx-auto">
+              <Card className="bg-yellow-900/20 border-yellow-500/50">
+                <CardContent className="p-4">
+                  <h3 className="text-yellow-400 font-semibold mb-2">🐛 Debug: Role Detection Status</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-400">Address:</p>
+                      <p className="text-white font-mono text-xs">{account.address}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Loading:</p>
+                      <p className={userRole.isLoading ? 'text-yellow-400' : 'text-green-400'}>
+                        {userRole.isLoading ? 'Yes' : 'No'}
                       </p>
                     </div>
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-gray-400 mb-1">As a Patient:</p>
-                      <p className="text-white">Visit any registered hospital to receive your first medical record</p>
+                    <div>
+                      <p className="text-gray-400">Has Role:</p>
+                      <p className={userRole.hasRole ? 'text-green-400' : 'text-red-400'}>
+                        {userRole.hasRole ? 'Yes' : 'No'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Available Routes:</p>
+                      <p className="text-white">{availableRoutes.length}</p>
                     </div>
                   </div>
+                  <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
+                    <div className={`p-2 rounded ${userRole.isAdmin ? 'bg-purple-900/50' : 'bg-gray-800'}`}>
+                      <p className="text-gray-400">Admin:</p>
+                      <p className={userRole.isAdmin ? 'text-purple-400' : 'text-gray-300'}>
+                        {userRole.isAdmin ? 'YES' : 'NO'}
+                      </p>
+                    </div>
+                    <div className={`p-2 rounded ${userRole.isHospital ? 'bg-emerald-900/50' : 'bg-gray-800'}`}>
+                      <p className="text-gray-400">Hospital:</p>
+                      <p className={userRole.isHospital ? 'text-emerald-400' : 'text-gray-300'}>
+                        {userRole.isHospital ? 'YES' : 'NO'}
+                      </p>
+                    </div>
+                    <div className={`p-2 rounded ${userRole.isPatient ? 'bg-pink-900/50' : 'bg-gray-800'}`}>
+                      <p className="text-gray-400">Patient:</p>
+                      <p className={userRole.isPatient ? 'text-pink-400' : 'text-gray-300'}>
+                        {userRole.isPatient ? 'YES' : 'NO'}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-yellow-300 text-xs mt-3">💡 Check browser console (F12) for detailed logs</p>
                 </CardContent>
               </Card>
-            </motion.div>
-          )
+            </div>
+            
+            {userRole.isLoading ? (
+              // Loading state while checking user role
+              <motion.div 
+                className="text-center py-20"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+              >
+                <Card variant="glass" className="max-w-md mx-auto bg-white/5">
+                  <CardContent className="text-center py-12">
+                    <LoadingSpinner size="lg" className="mx-auto mb-6" />
+                    <CardTitle className="text-white mb-4">
+                      Loading Your Dashboard
+                    </CardTitle>
+                    <CardDescription className="text-gray-300">
+                      Checking your role and permissions...
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : availableRoutes.length > 0 ? (
+              // Show available dashboards based on user role
+              <>
+                <motion.div 
+                  className="text-center mb-12"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <h3 className="text-2xl font-bold text-white mb-2">
+                    Welcome, {getRoleDisplayName(userRole)}
+                  </h3>
+                  <p className="text-gray-300">
+                    Access your {availableRoutes.length > 1 ? 'dashboards' : 'dashboard'} below
+                  </p>
+                </motion.div>
+                
+                <motion.div 
+                  className={`grid gap-8 mb-20 ${availableRoutes.length === 1 ? 'max-w-md mx-auto' : availableRoutes.length === 2 ? 'md:grid-cols-2 max-w-4xl mx-auto' : 'md:grid-cols-3'}`}
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {availableRoutes.map((route, index) => {
+                    const IconComponent = getIconComponent(route.path);
+                    const colorClasses = getColorClasses(route.color);
+                    
+                    return (
+                      <motion.div key={route.path} variants={fastItemVariants}>
+                        <Link href={route.path} className="group block">
+                          <Card 
+                            variant="glass" 
+                            hover 
+                            className={`${colorClasses.border} transition-all duration-300 ${colorClasses.bg}`}
+                          >
+                            <CardHeader>
+                              <div className="flex items-center justify-between mb-4">
+                                <div className={cn("p-4 rounded-2xl", `bg-gradient-to-br ${route.gradient}`, shadows.glow)}>
+                                  <IconComponent className="w-8 h-8 text-white" />
+                                </div>
+                                <ArrowRightIcon className={`w-5 h-5 text-gray-400 ${colorClasses.hover} group-hover:translate-x-1 transition-all`} />
+                              </div>
+                              <CardTitle className={`text-white ${colorClasses.text} transition-colors`}>
+                                {route.name}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <CardDescription className="text-gray-300 mb-4">
+                                {route.description}
+                              </CardDescription>
+                              <div className={`flex items-center ${colorClasses.accent} text-sm font-medium`}>
+                                <span>Access Portal</span>
+                                <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
+              </>
+            ) : (
+              // Show message for users without any role
+              <motion.div 
+                className="text-center py-20"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+              >
+                <Card variant="glass" className="max-w-lg mx-auto bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
+                  <CardContent className="text-center py-12">
+                    <motion.div
+                      animate={floatingAnimation}
+                      className="mb-6"
+                    >
+                      <DocumentTextIcon className="w-16 h-16 text-amber-400 mx-auto" />
+                    </motion.div>
+                    <CardTitle className="text-white mb-4">
+                      No Access Permissions
+                    </CardTitle>
+                    <CardDescription className="text-gray-300 mb-6">
+                      Your wallet address is not registered in the system. Please contact:
+                    </CardDescription>
+                    <div className="space-y-3 text-sm">
+                      <div className="bg-white/5 rounded-lg p-3">
+                        <p className="text-gray-400 mb-1">For Hospital Registration:</p>
+                        <p className="text-white font-mono text-xs break-all">
+                          Admin: 0x1752472acb1d642828805f8276710ce57b82c471a429f8af1a889d487f5cf29e
+                        </p>
+                      </div>
+                      <div className="bg-white/5 rounded-lg p-3">
+                        <p className="text-gray-400 mb-1">As a Patient:</p>
+                        <p className="text-white">Visit any registered hospital to receive your first medical record</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </>
         ) : (
-          // Not connected wallet message
           <motion.div 
             className="text-center py-20"
             initial={{ opacity: 0, y: 20 }}

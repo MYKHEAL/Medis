@@ -32,6 +32,46 @@ export function useMedicalRecordsContract() {
   const client = useSuiClient();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
 
+  // Helper function to check if hospital is registered
+  const isRegisteredHospital = async (registryId: string, hospitalAddress: string): Promise<boolean> => {
+    try {
+      const result = await client.devInspectTransactionBlock({
+        transactionBlock: (() => {
+          const tx = new Transaction();
+          tx.moveCall({
+            target: `${CONTRACT_CONFIG.packageId}::${CONTRACT_CONFIG.moduleName}::is_registered_hospital`,
+            arguments: [
+              tx.object(registryId),
+              tx.pure.address(hospitalAddress),
+            ],
+          });
+          return tx;
+        })(),
+        sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      });
+      
+      // Parse the boolean result from the smart contract
+      if (result.results && result.results.length > 0 && 
+          result.results[0].returnValues && result.results[0].returnValues.length > 0) {
+        const returnValue = result.results[0].returnValues[0] as any;
+        console.log('Hospital registration check result:', returnValue);
+        
+        // Handle different possible return formats
+        if (Array.isArray(returnValue)) {
+          return returnValue.length > 0 && (returnValue[0] === 1 || returnValue[0] === true);
+        } else {
+          return returnValue === 1 || returnValue === true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking hospital registration:', error);
+      // In case of error, assume not registered to be safe
+      return false;
+    }
+  };
+
   // Admin functions
   const registerHospital = async (
     adminCapId: string,
@@ -48,6 +88,29 @@ export function useMedicalRecordsContract() {
     console.log('Hospital Name:', hospitalName);
     console.log('Clock ID:', clockId);
     
+    // CRITICAL: Check if hospital is already registered before attempting registration
+    // This prevents EHospitalAlreadyRegistered (error code 3) aborts
+    try {
+      console.log('🔍 Checking if hospital is already registered...');
+      const isAlreadyRegistered = await isRegisteredHospital(registryId, hospitalAddress);
+      
+      if (isAlreadyRegistered) {
+        const error = new Error(`Hospital with address ${hospitalAddress} is already registered in the system.`);
+        console.error('❌ Registration blocked - hospital already exists:', hospitalAddress);
+        throw error;
+      }
+      
+      console.log('✅ Hospital is not registered yet, proceeding with registration...');
+    } catch (checkError: any) {
+      // If it's our custom error, re-throw it
+      if (checkError.message.includes('already registered')) {
+        throw checkError;
+      }
+      // If it's a network/other error, log but continue (fail-safe)
+      console.warn('⚠️ Could not verify registration status, proceeding anyway:', checkError);
+    }
+    
+    console.log('🔨 Building transaction...');
     const tx = new Transaction();
     
     tx.moveCall({
@@ -61,15 +124,24 @@ export function useMedicalRecordsContract() {
       ],
     });
 
+    console.log('📤 Submitting transaction to wallet...');
     return new Promise((resolve, reject) => {
+      // Add timeout to prevent hanging
+      const timeoutId = setTimeout(() => {
+        console.error('⏱️ Transaction timeout - wallet did not respond within 60 seconds');
+        reject(new Error('Transaction timeout: Wallet did not respond within 60 seconds. Please try again.'));
+      }, 60000); // 60 second timeout
+
       signAndExecute(
         { transaction: tx },
         {
           onSuccess: (result) => {
+            clearTimeout(timeoutId);
             console.log('✅ Registration successful:', result);
             resolve(result);
           },
           onError: (error) => {
+            clearTimeout(timeoutId);
             console.error('❌ Registration failed:', error);
             reject(error);
           },
@@ -133,45 +205,6 @@ export function useMedicalRecordsContract() {
     } catch (error) {
       console.error('Error getting hospital info:', error);
       throw error;
-    }
-  };
-
-  const isRegisteredHospital = async (registryId: string, hospitalAddress: string): Promise<boolean> => {
-    try {
-      const result = await client.devInspectTransactionBlock({
-        transactionBlock: (() => {
-          const tx = new Transaction();
-          tx.moveCall({
-            target: `${CONTRACT_CONFIG.packageId}::${CONTRACT_CONFIG.moduleName}::is_registered_hospital`,
-            arguments: [
-              tx.object(registryId),
-              tx.pure.address(hospitalAddress),
-            ],
-          });
-          return tx;
-        })(),
-        sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      });
-      
-      // Parse the boolean result from the smart contract
-      if (result.results && result.results.length > 0 && 
-          result.results[0].returnValues && result.results[0].returnValues.length > 0) {
-        const returnValue = result.results[0].returnValues[0] as any;
-        console.log('Hospital registration check result:', returnValue);
-        
-        // Handle different possible return formats
-        if (Array.isArray(returnValue)) {
-          return returnValue.length > 0 && (returnValue[0] === 1 || returnValue[0] === true);
-        } else {
-          return returnValue === 1 || returnValue === true;
-        }
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Error checking hospital registration:', error);
-      // In case of error, assume not registered to be safe
-      return false;
     }
   };
 

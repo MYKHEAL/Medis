@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
-import { CONTRACT_CONFIG } from './contract-utils';
 
 export interface UserRole {
   isAdmin: boolean;
@@ -39,10 +38,7 @@ export function useUserRole(): UserRole {
     let isMounted = true;
 
     const checkUserRole = async () => {
-      console.log('🔍 Checking role for address:', account.address);
-      
-      // Small delay to ensure wallet connection is stable
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('🔍 Checking roles for address:', account.address);
       
       const roles = {
         isAdmin: false,
@@ -51,56 +47,47 @@ export function useUserRole(): UserRole {
       };
 
       try {
-        // Debug environment variables
-        console.log('🗺️ Environment check:');
-        console.log('- Package ID:', process.env.NEXT_PUBLIC_PACKAGE_ID);
-        console.log('- Admin Cap ID:', process.env.NEXT_PUBLIC_ADMIN_CAP_ID);
-        console.log('- Hospital Registry ID:', process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID);
-        
-        // Check if user is admin by checking if they own the AdminCap
+        // === ADMIN CHECK ===
         const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID;
-        console.log('🔧 Admin Cap ID:', adminCapId);
+        console.log('🔧 Admin Cap ID from env:', adminCapId);
         
         if (adminCapId && adminCapId !== '0x0') {
           try {
-            console.log('🔍 Fetching AdminCap object...');
             const adminCapObject = await client.getObject({
               id: adminCapId,
               options: { showOwner: true, showContent: true },
             });
             
-            console.log('👑 Admin Cap Object:', adminCapObject);
+            console.log('👑 AdminCap object:', adminCapObject);
             
-            if (adminCapObject.data?.owner) {
-              console.log('👑 Admin Cap Owner details:', adminCapObject.data.owner);
-              console.log('👤 Current user address:', account.address);
+            if (adminCapObject.data?.owner && 
+                typeof adminCapObject.data.owner === 'object' &&
+                'AddressOwner' in adminCapObject.data.owner) {
+              const ownerAddress = adminCapObject.data.owner.AddressOwner;
+              console.log('👑 AdminCap owner:', ownerAddress);
+              console.log('👤 Current user:', account.address);
               
-              if (typeof adminCapObject.data.owner === 'object' &&
-                  'AddressOwner' in adminCapObject.data.owner && 
-                  adminCapObject.data.owner.AddressOwner === account.address) {
+              if (ownerAddress === account.address) {
                 roles.isAdmin = true;
-                console.log('✅ User is ADMIN - AdminCap owner match!');
+                console.log('✅ USER IS ADMIN!');
               } else {
-                console.log('❌ User is NOT admin. Expected:', account.address, 'Got:', adminCapObject.data.owner);
+                console.log('❌ User is NOT admin');
               }
             } else {
-              console.log('❌ Admin Cap has no owner information');
+              console.log('❌ AdminCap has no valid owner');
             }
           } catch (error) {
             console.log('⚠️ Error checking admin role:', error);
           }
         } else {
-          console.log('❌ No Admin Cap ID configured');
+          console.log('❌ No AdminCap ID configured');
         }
 
-        // Check if user is a registered hospital
+        // === HOSPITAL CHECK ===
         const hospitalRegistryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID;
         const packageId = process.env.NEXT_PUBLIC_PACKAGE_ID;
         
-        console.log('🏥 Hospital Registry ID:', hospitalRegistryId);
-        console.log('📦 Package ID:', packageId);
-        
-        if (hospitalRegistryId && hospitalRegistryId !== '0x0' && packageId && packageId !== '0x0') {
+        if (hospitalRegistryId && packageId) {
           try {
             const result = await client.devInspectTransactionBlock({
               transactionBlock: (() => {
@@ -119,55 +106,39 @@ export function useUserRole(): UserRole {
             
             console.log('🏥 Hospital check result:', result);
             
-            // Parse the boolean result properly
-            if (result.results && result.results.length > 0 && 
-                result.results[0].returnValues && result.results[0].returnValues.length > 0) {
+            if (result.results?.[0]?.returnValues?.[0]) {
               const returnValue = result.results[0].returnValues[0] as any;
-              console.log('🏥 Raw return value:', returnValue);
+              // Boolean is returned as [1] for true, [0] for false
+              const isHospital = Array.isArray(returnValue) && returnValue.length > 0 && returnValue[0] === 1;
               
-              // Handle different possible return formats
-              let isRegistered = false;
-              if (Array.isArray(returnValue)) {
-                isRegistered = returnValue.length > 0 && (returnValue[0] === 1 || returnValue[0] === true);
-              } else {
-                isRegistered = returnValue === 1 || returnValue === true;
-              }
-              
-              if (isRegistered) {
+              if (isHospital) {
                 roles.isHospital = true;
-                console.log('✅ User is HOSPITAL (verified in contract)');
+                console.log('✅ USER IS HOSPITAL!');
               } else {
-                console.log('❌ User is NOT hospital (not in contract registry)');
+                console.log('❌ User is NOT hospital');
               }
-            } else {
-              console.log('❌ No valid return from hospital check');
             }
           } catch (error) {
             console.log('⚠️ Error checking hospital role:', error);
-            // If we can't verify, assume not a hospital for safety
-            roles.isHospital = false;
           }
         }
 
-        // Check if user has any medical records (making them a patient)
-        if (packageId && packageId !== '0x0') {
+        // === PATIENT CHECK ===
+        if (packageId) {
           try {
             const ownedObjects = await client.getOwnedObjects({
               owner: account.address,
               filter: {
                 StructType: `${packageId}::medical_records::MedicalRecord`,
               },
-              options: {
-                showContent: true,
-                showDisplay: true,
-              },
+              options: { showContent: true },
             });
             
-            console.log('📋 Owned medical records:', ownedObjects);
+            console.log('📋 Medical records owned:', ownedObjects.data.length);
             
             if (ownedObjects.data.length > 0) {
               roles.isPatient = true;
-              console.log('✅ User is PATIENT (has records)');
+              console.log('✅ USER IS PATIENT!');
             } else {
               console.log('❌ User has no medical records');
             }
@@ -176,31 +147,30 @@ export function useUserRole(): UserRole {
           }
         }
 
-        // If user has no specific role but is connected, they can be considered a potential patient
+        // Default to patient if no other roles (connected users can be potential patients)
         if (!roles.isAdmin && !roles.isHospital && !roles.isPatient) {
-          // For any connected wallet that doesn't have specific roles, default to patient
           roles.isPatient = true;
-          console.log('🏥 User has no detected roles, defaulting to patient');
+          console.log('🏥 Defaulting to patient role');
         }
 
         console.log('🎭 Final roles:', roles);
 
         if (isMounted) {
-          // Always consider user as having a role if wallet is connected
           const hasRole = roles.isAdmin || roles.isHospital || roles.isPatient;
           setRole({
             ...roles,
             isLoading: false,
-            hasRole: true, // Always true for connected wallets
+            hasRole,
           });
         }
       } catch (error) {
-        console.error('❌ Error checking user role:', error);
+        console.error('❌ Error in role detection:', error);
         if (isMounted) {
+          // Default to patient role on error
           setRole({
             isAdmin: false,
             isHospital: false,
-            isPatient: true, // Default to patient role if role check fails
+            isPatient: true,
             isLoading: false,
             hasRole: true,
           });
