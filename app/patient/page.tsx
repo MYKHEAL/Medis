@@ -22,12 +22,20 @@ interface MedicalRecord {
   description?: string;
 }
 
+interface HospitalSummary {
+  address: string;
+  name: string;
+  recordCount: number;
+  latestRecord: Date;
+}
+
 export default function PatientDashboard() {
   const account = useCurrentAccount();
   const { getOwnedRecords } = useMedicalRecordsContract();
   const { downloadMedicalRecord, createDownloadUrl, revokeDownloadUrl } = useIPFS();
   
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [hospitalSummaries, setHospitalSummaries] = useState<HospitalSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [downloadingRecord, setDownloadingRecord] = useState<string | null>(null);
 
@@ -59,13 +67,41 @@ export default function PatientDashboard() {
           };
         });
         
+        // Create hospital summaries
+        const hospitalMap = new Map<string, HospitalSummary>();
+        
+        records.forEach(record => {
+          const hospitalAddress = record.hospitalAddress;
+          if (hospitalMap.has(hospitalAddress)) {
+            const summary = hospitalMap.get(hospitalAddress)!;
+            summary.recordCount += 1;
+            if (record.createdAt > summary.latestRecord) {
+              summary.latestRecord = record.createdAt;
+            }
+          } else {
+            hospitalMap.set(hospitalAddress, {
+              address: hospitalAddress,
+              name: record.hospitalName,
+              recordCount: 1,
+              latestRecord: record.createdAt
+            });
+          }
+        });
+        
+        const summaries = Array.from(hospitalMap.values()).sort((a, b) => 
+          b.latestRecord.getTime() - a.latestRecord.getTime()
+        );
+        
         // If no real records, show helpful message
         if (records.length === 0) {
           console.log('📋 No medical records found for this patient');
           setMedicalRecords([]);
+          setHospitalSummaries([]);
         } else {
           console.log('📋 Loaded medical records:', records);
+          console.log('📋 Hospital summaries:', summaries);
           setMedicalRecords(records);
+          setHospitalSummaries(summaries);
         }
       } catch (error) {
         console.error('Error loading medical records:', error);
@@ -309,6 +345,73 @@ export default function PatientDashboard() {
             </div>
           </Card>
         </motion.div>
+
+        {/* Hospitals That Issued Records */}
+        {hospitalSummaries.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mb-8"
+          >
+            <Card variant="glass" className="overflow-hidden">
+              <div className="p-6 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white flex items-center">
+                      <motion.div
+                        whileHover={{ rotate: 360 }}
+                        transition={{ duration: 0.6 }}
+                        className="mr-3"
+                      >
+                        <Building2 className="w-6 h-6 text-blue-400" />
+                      </motion.div>
+                      Healthcare Providers
+                    </h2>
+                    <p className="text-blue-200 mt-1">
+                      Hospitals and clinics that have issued medical records to you
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {hospitalSummaries.map((hospital, index) => (
+                    <motion.div
+                      key={hospital.address}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <Card variant="glass" className="p-4 hover:scale-105 transition-all duration-300 bg-gradient-to-br from-blue-500/10 to-cyan-500/10">
+                        <div className="flex items-start space-x-3">
+                          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg">
+                            <Building2 className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-white font-medium truncate">{hospital.name}</h3>
+                            <p className="text-blue-300 text-xs font-mono truncate">{formatAddress(hospital.address)}</p>
+                            <div className="mt-2 space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-blue-200">Records:</span>
+                                <span className="text-white font-medium">{hospital.recordCount}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-blue-200">Latest:</span>
+                                <span className="text-white">{hospital.latestRecord.toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Medical Records */}
         <motion.div 

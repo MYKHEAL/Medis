@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { DeploymentStatusCheck } from '@/components/DeploymentStatusCheck';
 import { cn, gradients, shadows } from '@/lib/ui-utils';
-import { useUserRole, getRoleDisplayName, getAvailableRoutes } from '@/lib/role-utils';
+import { useUserRole, getRoleDisplayName, getAvailableRoutes, useAutoRedirect } from '@/lib/role-utils';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -61,6 +61,9 @@ const floatingAnimation = {
 export default function Home() {
   const account = useCurrentAccount();
   const userRole = useUserRole();
+  
+  // Auto-redirect users to their appropriate dashboard
+  useAutoRedirect();
   
   // Disable complex animations on slower devices
   const prefersReducedMotion = typeof window !== 'undefined' && 
@@ -222,16 +225,47 @@ export default function Home() {
                 <CardContent className="text-center py-12">
                   <LoadingSpinner size="lg" className="mx-auto mb-6" />
                   <CardTitle className="text-white mb-4">
-                    Loading Your Dashboard
+                    Detecting Your Role
                   </CardTitle>
                   <CardDescription className="text-gray-300">
-                    Checking your role and permissions...
+                    Analyzing blockchain data to determine your access level...
                   </CardDescription>
                 </CardContent>
               </Card>
             </motion.div>
+          ) : userRole.primaryRole ? (
+            // Auto-redirect message for users with a primary role
+            <motion.div 
+              className="text-center py-20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Card variant="glass" className="max-w-lg mx-auto bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
+                <CardContent className="text-center py-12">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="mb-6"
+                  >
+                    <ArrowRightIcon className="w-16 h-16 text-green-400 mx-auto" />
+                  </motion.div>
+                  <CardTitle className="text-white mb-4">
+                    Welcome, {getRoleDisplayName(userRole)}!
+                  </CardTitle>
+                  <CardDescription className="text-green-200 mb-6">
+                    Redirecting you to your {userRole.primaryRole} dashboard...
+                  </CardDescription>
+                  <div className="bg-green-900/20 rounded-lg p-3">
+                    <p className="text-green-300 text-sm">
+                      🚀 You will be automatically redirected in a moment
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           ) : availableRoutes.length > 0 ? (
-            // Show available dashboards based on user role
+            // Show available dashboards for users with multiple roles but no primary
             <>
               <motion.div 
                 className="text-center mb-12"
@@ -243,7 +277,7 @@ export default function Home() {
                   Welcome, {getRoleDisplayName(userRole)}
                 </h3>
                 <p className="text-gray-300">
-                  Access your {availableRoutes.length > 1 ? 'dashboards' : 'dashboard'} below
+                  Choose your {availableRoutes.length > 1 ? 'preferred dashboard' : 'dashboard'}
                 </p>
               </motion.div>
               

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
+import { useRouter } from 'next/navigation';
 
 export interface UserRole {
   isAdmin: boolean;
@@ -10,6 +11,7 @@ export interface UserRole {
   isPatient: boolean;
   isLoading: boolean;
   hasRole: boolean;
+  primaryRole: 'admin' | 'hospital' | 'patient' | null;
 }
 
 export function useUserRole(): UserRole {
@@ -21,6 +23,7 @@ export function useUserRole(): UserRole {
     isPatient: false,
     isLoading: true,
     hasRole: false,
+    primaryRole: null,
   });
 
   useEffect(() => {
@@ -31,6 +34,7 @@ export function useUserRole(): UserRole {
         isPatient: false,
         isLoading: false,
         hasRole: false,
+        primaryRole: null,
       });
       return;
     }
@@ -163,10 +167,13 @@ export function useUserRole(): UserRole {
 
         if (isMounted) {
           const hasRole = roles.isAdmin || roles.isHospital || roles.isPatient;
+          const primaryRole = roles.isAdmin ? 'admin' : roles.isHospital ? 'hospital' : roles.isPatient ? 'patient' : null;
+          
           setRole({
             ...roles,
             isLoading: false,
             hasRole,
+            primaryRole,
           });
         }
       } catch (error) {
@@ -179,6 +186,7 @@ export function useUserRole(): UserRole {
             isPatient: true,
             isLoading: false,
             hasRole: true,
+            primaryRole: 'patient',
           });
         }
       }
@@ -254,4 +262,44 @@ export function getAvailableRoutes(role: UserRole): Array<{
   }
 
   return routes;
+}
+
+// Hook for automatic role-based redirection
+export function useAutoRedirect(): void {
+  const router = useRouter();
+  const account = useCurrentAccount();
+  const userRole = useUserRole();
+  const [hasRedirected, setHasRedirected] = useState(false);
+
+  useEffect(() => {
+    // Only redirect if user is connected, role is loaded, and we haven't redirected yet
+    if (!account || userRole.isLoading || hasRedirected) {
+      return;
+    }
+
+    // Only redirect from home page to avoid infinite redirects
+    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+      return;
+    }
+
+    // Automatic redirection based on primary role
+    if (userRole.primaryRole) {
+      console.log('🚀 Auto-redirecting user to', userRole.primaryRole, 'dashboard');
+      
+      const redirectPath = `/${userRole.primaryRole}`;
+      setHasRedirected(true);
+      
+      // Use a small delay to ensure smooth UX
+      setTimeout(() => {
+        router.push(redirectPath);
+      }, 1000);
+    }
+  }, [account, userRole, router, hasRedirected]);
+
+  // Reset redirection flag when user disconnects
+  useEffect(() => {
+    if (!account) {
+      setHasRedirected(false);
+    }
+  }, [account]);
 }
