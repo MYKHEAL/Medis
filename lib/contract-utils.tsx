@@ -227,6 +227,34 @@ export function useMedicalRecordsContract() {
     }
   };
 
+  // Get list of all registered hospitals (for debugging)
+  const getRegisteredHospitals = async (registryId: string) => {
+    try {
+      // Get the registry object to access registered hospitals
+      const registryObject = await client.getObject({
+        id: registryId,
+        options: {
+          showContent: true,
+          showDisplay: true,
+        },
+      });
+      
+      console.log('🏥 Hospital Registry Object:', registryObject);
+      
+      // Extract hospitals from registry content if available
+      const content = registryObject.data?.content as any;
+      if (content?.fields?.hospitals) {
+        console.log('🏥 Registered Hospitals:', content.fields.hospitals);
+        return content.fields.hospitals;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Error getting registered hospitals:', error);
+      return [];
+    }
+  };
+
   const getOwnedRecords = async (ownerAddress: string) => {
     try {
       const result = await client.getOwnedObjects({
@@ -276,6 +304,7 @@ export function useMedicalRecordsContract() {
     // Query functions
     getHospitalInfo,
     isRegisteredHospital,
+    getRegisteredHospitals,
     getOwnedRecords,
     getRecordsCount,
   };

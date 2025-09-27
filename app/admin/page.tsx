@@ -23,7 +23,7 @@ interface HospitalRegistration {
 
 export default function AdminDashboard() {
   const account = useCurrentAccount();
-  const { registerHospital, isRegisteredHospital } = useMedicalRecordsContract();
+  const { registerHospital, isRegisteredHospital, getRegisteredHospitals } = useMedicalRecordsContract();
   
   const [hospitalForm, setHospitalForm] = useState({
     name: '',
@@ -33,6 +33,8 @@ export default function AdminDashboard() {
   const [isCheckingRegistration, setIsCheckingRegistration] = useState(false);
   const [registeredHospitals, setRegisteredHospitals] = useState<HospitalRegistration[]>([]);
   const [registrationError, setRegistrationError] = useState<string>('');
+  const [checkingAddress, setCheckingAddress] = useState<string>('');
+  const [addressCheckResult, setAddressCheckResult] = useState<string>('');
 
   const handleRegisterHospital = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,24 +109,34 @@ export default function AdminDashboard() {
       // Handle specific error types
       if (error.message && error.message.includes('timeout')) {
         setRegistrationError('Registration timed out. Please check your wallet connection and try again.');
-      } else if (error.message && error.message.includes('EHospitalAlreadyRegistered')) {
-        setRegistrationError('This hospital address is already registered in the system.');
+      } else if (error.message && error.message.includes('already registered')) {
+        setRegistrationError(`Hospital address ${hospitalForm.address} is already registered in the system. Please use a different address.`);
       } else if (error.message && error.message.includes('MoveAbort')) {
         const match = error.message.match(/MoveAbort.*?(\d+)/);
         if (match) {
           const errorCode = match[1];
           switch (errorCode) {
             case '1':
-              setRegistrationError('Access denied: Admin privileges required.');
+              setRegistrationError('Access denied: Admin privileges required. Make sure you\'re using the correct admin wallet.');
               break;
             case '3':
-              setRegistrationError('Hospital address is already registered.');
+              setRegistrationError(`Hospital address ${hospitalForm.address} is already registered in the system. This address was previously registered and cannot be registered again. Please use a different wallet address.`);
+              break;
+            case '2':
+              setRegistrationError('Invalid hospital registry. Please check the system configuration.');
               break;
             default:
-              setRegistrationError(`Registration failed with error code: ${errorCode}`);
+              setRegistrationError(`Registration failed with smart contract error code: ${errorCode}. Please contact support.`);
           }
         } else {
-          setRegistrationError('Registration failed due to a smart contract error.');
+          setRegistrationError('Registration failed due to a smart contract error. Please try again.');
+        }
+      } else if (error.message && error.message.includes('TRPCClientError')) {
+        // Handle wallet errors specifically
+        if (error.message.includes('MoveAbort') && error.message.includes('3')) {
+          setRegistrationError(`Hospital address ${hospitalForm.address} is already registered. This wallet was previously added to the system.`);
+        } else {
+          setRegistrationError('Wallet transaction failed. Please check your connection and try again.');
         }
       } else {
         setRegistrationError(error.message || 'Failed to register hospital. Please check your wallet connection and try again.');
@@ -137,6 +149,26 @@ export default function AdminDashboard() {
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const checkIfAddressRegistered = async () => {
+    if (!checkingAddress.trim()) {
+      setAddressCheckResult('Please enter an address to check');
+      return;
+    }
+
+    try {
+      const registryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID || '0x0';
+      const isRegistered = await isRegisteredHospital(registryId, checkingAddress);
+      
+      if (isRegistered) {
+        setAddressCheckResult(`❌ Address ${formatAddress(checkingAddress)} is already registered as a hospital`);
+      } else {
+        setAddressCheckResult(`✅ Address ${formatAddress(checkingAddress)} is available for registration`);
+      }
+    } catch (error) {
+      setAddressCheckResult(`⚠️ Error checking address: ${error}`);
+    }
   };
 
   if (!account) {
@@ -375,6 +407,38 @@ export default function AdminDashboard() {
                     <p className="text-gray-400 text-xs mt-2">
                       Current admin address: {formatAddress(account.address)}
                     </p>
+                    
+                    {/* Address Registration Checker */}
+                    <div className="mt-3 p-3 bg-blue-900/20 rounded-lg border border-blue-500/30">
+                      <p className="text-blue-300 text-sm font-medium mb-2">🔍 Check Address Registration Status</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={checkingAddress}
+                          onChange={(e) => {
+                            setCheckingAddress(e.target.value);
+                            setAddressCheckResult('');
+                          }}
+                          className="flex-1 px-3 py-2 bg-blue-900/30 border border-blue-500/50 rounded-lg text-white placeholder-blue-300 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          placeholder="Enter address to check..."
+                        />
+                        <Button
+                          type="button"
+                          onClick={checkIfAddressRegistered}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Check
+                        </Button>
+                      </div>
+                      {addressCheckResult && (
+                        <div className="mt-2 p-2 rounded text-xs">
+                          <p className={addressCheckResult.includes('✅') ? 'text-green-300' : addressCheckResult.includes('❌') ? 'text-red-300' : 'text-yellow-300'}>
+                            {addressCheckResult}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <Button
                     type="submit"
