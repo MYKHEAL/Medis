@@ -52,39 +52,48 @@ export function useUserRole(): UserRole {
 
       try {
         // === ADMIN CHECK ===
-        const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID;
-        console.log('🔧 Admin Cap ID from env:', adminCapId);
+        // Hardcoded admin address for guaranteed access
+        const ADMIN_ADDRESS = '0x1752472acb1d642828805f8276710ce57b82c471a429f8af1a889d487f5cf29e';
         
-        if (adminCapId && adminCapId !== '0x0' && adminCapId !== 'undefined') {
-          try {
-            const adminCapObject = await client.getObject({
-              id: adminCapId,
-              options: { showOwner: true, showContent: true },
-            });
-            
-            console.log('👑 AdminCap object:', adminCapObject);
-            
-            if (adminCapObject.data?.owner && 
-                typeof adminCapObject.data.owner === 'object' &&
-                'AddressOwner' in adminCapObject.data.owner) {
-              const ownerAddress = adminCapObject.data.owner.AddressOwner;
-              console.log('👑 AdminCap owner:', ownerAddress);
-              console.log('👤 Current user:', account.address);
-              
-              if (ownerAddress === account.address) {
-                roles.isAdmin = true;
-                console.log('✅ USER IS ADMIN!');
-              } else {
-                console.log('❌ User is NOT admin');
-              }
-            } else {
-              console.log('❌ AdminCap has no valid owner');
-            }
-          } catch (error) {
-            console.log('⚠️ Error checking admin role:', error);
-          }
+        if (account.address === ADMIN_ADDRESS) {
+          roles.isAdmin = true;
+          console.log('✅ USER IS HARDCODED ADMIN!');
         } else {
-          console.log('❌ No valid AdminCap ID configured (value:', adminCapId, ')');
+          // Also check AdminCap ownership as secondary method
+          const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID;
+          console.log('🔧 Admin Cap ID from env:', adminCapId);
+          
+          if (adminCapId && adminCapId !== '0x0' && adminCapId !== 'undefined') {
+            try {
+              const adminCapObject = await client.getObject({
+                id: adminCapId,
+                options: { showOwner: true, showContent: true },
+              });
+              
+              console.log('👑 AdminCap object:', adminCapObject);
+              
+              if (adminCapObject.data?.owner && 
+                  typeof adminCapObject.data.owner === 'object' &&
+                  'AddressOwner' in adminCapObject.data.owner) {
+                const ownerAddress = adminCapObject.data.owner.AddressOwner;
+                console.log('👑 AdminCap owner:', ownerAddress);
+                console.log('👤 Current user:', account.address);
+                
+                if (ownerAddress === account.address) {
+                  roles.isAdmin = true;
+                  console.log('✅ USER IS ADMIN via AdminCap!');
+                } else {
+                  console.log('❌ User is NOT admin via AdminCap');
+                }
+              } else {
+                console.log('❌ AdminCap has no valid owner');
+              }
+            } catch (error) {
+              console.log('⚠️ Error checking admin role via AdminCap:', error);
+            }
+          } else {
+            console.log('❌ No valid AdminCap ID configured (value:', adminCapId, ')');
+          }
         }
 
         // === HOSPITAL CHECK ===
