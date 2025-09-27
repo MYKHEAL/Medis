@@ -109,6 +109,10 @@ export default function AdminDashboard() {
       // Handle specific error types
       if (error.message && error.message.includes('timeout')) {
         setRegistrationError('Registration timed out. Please check your wallet connection and try again.');
+      } else if (error.message && error.message.includes('Network connection failed')) {
+        setRegistrationError('Network error: Cannot connect to Sui RPC. Please check your internet connection and try again.');
+      } else if (error.message && error.message.includes('Smart contract check failed')) {
+        setRegistrationError('Smart contract configuration error. Please verify the registry settings and try again.');
       } else if (error.message && error.message.includes('already registered')) {
         setRegistrationError(`Hospital address ${hospitalForm.address} is already registered in the system. Please use a different address.`);
       } else if (error.message && error.message.includes('MoveAbort')) {
@@ -135,6 +139,8 @@ export default function AdminDashboard() {
         // Handle wallet errors specifically
         if (error.message.includes('MoveAbort') && error.message.includes('3')) {
           setRegistrationError(`Hospital address ${hospitalForm.address} is already registered. This wallet was previously added to the system.`);
+        } else if (error.message.includes('Failed to fetch')) {
+          setRegistrationError('Network error: Cannot connect to blockchain. Please check your internet connection and try again.');
         } else {
           setRegistrationError('Wallet transaction failed. Please check your connection and try again.');
         }

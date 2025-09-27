@@ -54,6 +54,9 @@ export function useMedicalRecordsContract() {
   // Helper function to check if hospital is registered
   const isRegisteredHospital = async (registryId: string, hospitalAddress: string): Promise<boolean> => {
     try {
+      console.log('🔍 Checking hospital registration for:', hospitalAddress);
+      console.log('🏥 Using registry ID:', registryId);
+      
       const result = await client.devInspectTransactionBlock({
         transactionBlock: (() => {
           const tx = new Transaction();
@@ -69,25 +72,45 @@ export function useMedicalRecordsContract() {
         sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
       });
       
+      console.log('📋 Raw inspection result:', JSON.stringify(result, null, 2));
+      
       // Parse the boolean result from the smart contract
       if (result.results && result.results.length > 0 && 
           result.results[0].returnValues && result.results[0].returnValues.length > 0) {
         const returnValue = result.results[0].returnValues[0] as any;
-        console.log('Hospital registration check result:', returnValue);
+        console.log('🔍 Hospital registration check result:', returnValue);
         
         // Handle different possible return formats
         if (Array.isArray(returnValue)) {
-          return returnValue.length > 0 && (returnValue[0] === 1 || returnValue[0] === true);
+          const isRegistered = returnValue.length > 0 && (returnValue[0] === 1 || returnValue[0] === true);
+          console.log('🏥 Hospital registration status (array):', isRegistered);
+          return isRegistered;
         } else {
-          return returnValue === 1 || returnValue === true;
+          const isRegistered = returnValue === 1 || returnValue === true;
+          console.log('🏥 Hospital registration status (direct):', isRegistered);
+          return isRegistered;
         }
       }
       
+      console.log('⚠️ No valid return values, assuming not registered');
       return false;
-    } catch (error) {
-      console.error('Error checking hospital registration:', error);
-      // In case of error, assume not registered to be safe
-      return false;
+    } catch (error: any) {
+      console.error('❌ Error checking hospital registration:', error);
+      
+      // More specific error handling
+      if (error.message && error.message.includes('Failed to fetch')) {
+        console.error('🌐 Network error - RPC connection failed');
+        throw new Error('Network connection failed. Please check your internet connection and try again.');
+      }
+      
+      if (error.message && error.message.includes('MoveAbort')) {
+        console.error('📜 Smart contract error during registration check');
+        // If the check itself fails due to contract error, we should stop
+        throw new Error('Smart contract check failed. Please verify the registry configuration.');
+      }
+      
+      // For other errors, throw to be handled by caller
+      throw new Error(`Registration check failed: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -109,24 +132,39 @@ export function useMedicalRecordsContract() {
     
     // CRITICAL: Check if hospital is already registered before attempting registration
     // This prevents EHospitalAlreadyRegistered (error code 3) aborts
+    console.log('🔍 Performing pre-registration check...');
     try {
-      console.log('🔍 Checking if hospital is already registered...');
       const isAlreadyRegistered = await isRegisteredHospital(registryId, hospitalAddress);
       
       if (isAlreadyRegistered) {
-        const error = new Error(`Hospital with address ${hospitalAddress} is already registered in the system.`);
+        const errorMsg = `Hospital with address ${hospitalAddress} is already registered in the system. Each hospital must use a unique wallet address.`;
         console.error('❌ Registration blocked - hospital already exists:', hospitalAddress);
-        throw error;
+        throw new Error(errorMsg);
       }
       
-      console.log('✅ Hospital is not registered yet, proceeding with registration...');
+      console.log('✅ Pre-check passed: Hospital is not registered, proceeding with registration...');
     } catch (checkError: any) {
-      // If it's our custom error, re-throw it
+      // If it's our custom "already registered" error, re-throw it
       if (checkError.message.includes('already registered')) {
         throw checkError;
       }
-      // If it's a network/other error, log but continue (fail-safe)
-      console.warn('⚠️ Could not verify registration status, proceeding anyway:', checkError);
+      
+      // If it's a network error, re-throw it (don't proceed)
+      if (checkError.message.includes('Network connection failed') || 
+          checkError.message.includes('Failed to fetch')) {
+        console.error('🌐 Network error during pre-check - stopping registration');
+        throw new Error('Cannot verify hospital registration status due to network issues. Please check your connection and try again.');
+      }
+      
+      // If it's a smart contract error during check, re-throw it
+      if (checkError.message.includes('Smart contract check failed')) {
+        console.error('📜 Contract error during pre-check - stopping registration');
+        throw checkError;
+      }
+      
+      // For other unknown errors, log but proceed with caution
+      console.warn('⚠️ Unknown error during pre-check, proceeding with registration attempt:', checkError.message);
+      console.warn('⚠️ If registration fails with "already registered" error, this address is likely already in the system');
     }
     
     console.log('🔨 Building transaction...');
