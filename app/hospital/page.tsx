@@ -303,6 +303,7 @@ export default function HospitalDashboard() {
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.6 }}
                 className="p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 shadow-lg"
+                style={{ willChange: 'transform' }}
               >
                 <FileText className="w-6 h-6 text-white" />
               </motion.div>
@@ -326,6 +327,7 @@ export default function HospitalDashboard() {
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.6 }}
                 className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 shadow-lg"
+                style={{ willChange: 'transform' }}
               >
                 <Users className="w-6 h-6 text-white" />
               </motion.div>
@@ -349,6 +351,7 @@ export default function HospitalDashboard() {
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.6 }}
                 className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg"
+                style={{ willChange: 'transform' }}
               >
                 <Clock className="w-6 h-6 text-white" />
               </motion.div>

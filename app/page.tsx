@@ -136,7 +136,7 @@ export default function Home() {
           <div className="flex justify-between items-center py-6">
             <motion.div 
               className="flex items-center"
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.01 }}
               transition={{ duration: 0.2 }}
             >
               <div className={cn("p-3 rounded-2xl mr-4", gradients.medical, shadows.glow)}>
@@ -170,6 +170,7 @@ export default function Home() {
             <motion.div
               className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 mb-8"
               animate={prefersReducedMotion ? {} : floatingAnimation}
+              style={{ willChange: 'transform' }}
             >
               <SparklesIcon className="w-5 h-5 text-purple-300 mr-2" />
               <span className="text-purple-200 text-sm font-medium">Powered by Sui Blockchain</span>
@@ -245,8 +246,9 @@ export default function Home() {
                 <CardContent className="text-center py-12">
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                     className="mb-6"
+                    style={{ willChange: 'transform' }}
                   >
                     <ArrowRightIcon className="w-16 h-16 text-green-400 mx-auto" />
                   </motion.div>

@@ -441,6 +441,7 @@ export default function PatientDashboard() {
                   animate={{ rotate: 360 }}
                   transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                   className="p-2 rounded-lg bg-white/10"
+                  style={{ willChange: 'transform' }}
                 >
                   <Activity className="w-5 h-5 text-purple-400" />
                 </motion.div>
@@ -452,8 +453,9 @@ export default function PatientDashboard() {
                 <div className="text-center py-12">
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                     className="rounded-full h-12 w-12 border-4 border-purple-500/30 border-t-purple-400 mx-auto mb-4"
+                    style={{ willChange: 'transform' }}
                   />
                   <p className="text-purple-200">Loading your medical records...</p>
                 </div>
@@ -491,7 +493,7 @@ export default function PatientDashboard() {
                             <div className="flex items-start space-x-4 flex-1">
                               <motion.div 
                                 className="text-2xl p-2 rounded-lg bg-white/10"
-                                whileHover={{ scale: 1.2, rotate: 5 }}
+                                whileHover={{ scale: 1.1 }}
                               >
                                 {getFileIcon(record.fileName)}
                               </motion.div>

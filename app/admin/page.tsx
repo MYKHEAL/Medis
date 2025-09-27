@@ -216,8 +216,8 @@ export default function AdminDashboard() {
             <div className="flex items-center">
               <Link href="/" className="mr-4">
                 <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
                 >
                   <ArrowLeftIcon className="w-6 h-6 text-white" />
