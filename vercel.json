@@ -1,9 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
   "framework": "nextjs",
+  "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "devCommand": "npm run dev",
   "env": {
     "NEXT_PUBLIC_SUI_NETWORK": "testnet",
     "NEXT_PUBLIC_PACKAGE_ID": "0xb6f793a43f7f97d0c11bf3ca8bfe36694b3c8cce3e4cf13b27afc4f5417c0663",
@@ -13,16 +11,5 @@
     "NEXT_PUBLIC_IPFS_GATEWAY": "https://ipfs.io/ipfs/",
     "NEXT_PUBLIC_IPFS_API": "https://api.pinata.cloud",
     "NEXT_PUBLIC_ENCRYPTION_KEY": "medis-secure-key-2024"
-  },
-  "functions": {
-    "app/**": {
-      "runtime": "nodejs18.x"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/"
-    }
-  ]
+  }
 }
