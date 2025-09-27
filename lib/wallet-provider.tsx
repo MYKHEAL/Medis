@@ -2,27 +2,15 @@
 'use client';
 
 import '@mysten/dapp-kit/dist/index.css';
-import { 
-  SuiClientProvider, 
-  WalletProvider
-} from '@mysten/dapp-kit';
+import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
 import { getFullnodeUrl } from '@mysten/sui/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 
-// Create a react-query client with optimized settings for faster wallet connections
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      retryDelay: 500,
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 10, // 10 minutes
-    },
-  },
-});
+// Create a react-query client
+const queryClient = new QueryClient();
 
-// Network configuration for Sui with optimized settings
+// Network configuration for Sui
 const networks = {
   devnet: { url: getFullnodeUrl('devnet') },
   testnet: { url: getFullnodeUrl('testnet') },
@@ -40,10 +28,7 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
   return (
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networks} defaultNetwork={defaultNetwork}>
-        <WalletProvider
-          autoConnect
-          preferredWallets={['Sui Wallet', 'Suiet Wallet', 'Ethos Wallet']}
-        >
+        <WalletProvider>
           {children}
         </WalletProvider>
       </SuiClientProvider>

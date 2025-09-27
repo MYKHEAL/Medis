@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useCurrentAccount } from '@mysten/dapp-kit';
+import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShieldCheckIcon, 
@@ -13,7 +13,6 @@ import Link from 'next/link';
 import { useMedicalRecordsContract } from '@/lib/contract-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { FastConnectButton } from '@/components/ui/FastConnectButton';
 import { cn, gradients, shadows } from '@/lib/ui-utils';
 
 interface HospitalRegistration {
@@ -86,7 +85,7 @@ export default function AdminDashboard() {
               <p className="text-gray-300 mb-8 text-lg">
                 Please connect your admin wallet to access the control panel
               </p>
-              <FastConnectButton />
+              <ConnectButton />
             </CardContent>
           </Card>
         </motion.div>
@@ -123,7 +122,7 @@ export default function AdminDashboard() {
                 <p className="text-gray-300">Manage hospitals and system administration</p>
               </div>
             </div>
-            <FastConnectButton />
+            <ConnectButton />
           </div>
         </div>
       </motion.header>
