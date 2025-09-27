@@ -17,6 +17,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { DeploymentStatusCheck } from '@/components/DeploymentStatusCheck';
 import { cn, gradients, shadows } from '@/lib/ui-utils';
 import { useUserRole, getRoleDisplayName, getAvailableRoutes } from '@/lib/role-utils';
 
@@ -152,6 +153,9 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Deployment Status Check */}
+        <DeploymentStatusCheck />
+        
         {/* Hero Section */}
         <motion.div 
           className="text-center mb-20"

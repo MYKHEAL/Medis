@@ -7,9 +7,28 @@ import { SuiObjectResponse } from '@mysten/sui/client';
 
 // Contract addresses (these will be set after deployment)
 export const CONTRACT_CONFIG = {
-  packageId: process.env.NEXT_PUBLIC_PACKAGE_ID || '0x0', // Will be set after deployment
+  packageId: process.env.NEXT_PUBLIC_PACKAGE_ID || '0x0',
   moduleName: 'medical_records',
 } as const;
+
+// Validate environment variables
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+  const requiredEnvVars = [
+    'NEXT_PUBLIC_PACKAGE_ID',
+    'NEXT_PUBLIC_HOSPITAL_REGISTRY_ID',
+    'NEXT_PUBLIC_RECORD_REGISTRY_ID',
+    'NEXT_PUBLIC_ADMIN_CAP_ID'
+  ];
+  
+  const missingVars = requiredEnvVars.filter(varName => 
+    !process.env[varName] || process.env[varName] === '0x0'
+  );
+  
+  if (missingVars.length > 0) {
+    console.warn('⚠️ Missing required environment variables for production:', missingVars);
+    console.warn('Please set these variables in your Vercel dashboard under Environment Variables');
+  }
+}
 
 // Types for contract interactions
 export interface HospitalInfo {

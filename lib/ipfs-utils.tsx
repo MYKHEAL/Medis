@@ -7,7 +7,14 @@ import CryptoJS from 'crypto-js';
 
 // File encryption utilities
 export class FileEncryption {
-  private static readonly ENCRYPTION_KEY = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || 'default-medical-key';
+  private static readonly ENCRYPTION_KEY = (() => {
+    const key = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
+    if (!key || key === 'undefined' || key === 'your-encryption-key-here') {
+      console.warn('⚠️ Using default encryption key. Set NEXT_PUBLIC_ENCRYPTION_KEY for production.');
+      return 'medis-secure-key-2024';
+    }
+    return key;
+  })();
 
   static encrypt(data: string): string {
     return CryptoJS.AES.encrypt(data, this.ENCRYPTION_KEY).toString();
@@ -131,6 +138,9 @@ export class IPFSManager {
 
   static generateIPFSUrl(cid: string): string {
     const gateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY || 'https://ipfs.io/ipfs/';
+    if (gateway === 'https://ipfs.io/ipfs/' && process.env.NODE_ENV === 'production') {
+      console.warn('⚠️ Using default IPFS gateway. Consider setting up a dedicated gateway for production.');
+    }
     return `${gateway}${cid}`;
   }
 

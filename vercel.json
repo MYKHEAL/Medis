@@ -1,0 +1,28 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev",
+  "env": {
+    "NEXT_PUBLIC_SUI_NETWORK": "testnet",
+    "NEXT_PUBLIC_PACKAGE_ID": "0xb6f793a43f7f97d0c11bf3ca8bfe36694b3c8cce3e4cf13b27afc4f5417c0663",
+    "NEXT_PUBLIC_HOSPITAL_REGISTRY_ID": "0x26c7631fe3c936198f863e1f0a52eda0261792f87e57f61c8f52169ca6fcd9fc",
+    "NEXT_PUBLIC_RECORD_REGISTRY_ID": "0xc26727c38cbf215103eded85154e935362db42f5e1f11ba7b4a7f73eff3852ee",
+    "NEXT_PUBLIC_ADMIN_CAP_ID": "0xf467137eed9ab4712f6c18551571cb858f32336c31e5d453d7a448e49a7cf5ee",
+    "NEXT_PUBLIC_IPFS_GATEWAY": "https://ipfs.io/ipfs/",
+    "NEXT_PUBLIC_IPFS_API": "https://api.pinata.cloud",
+    "NEXT_PUBLIC_ENCRYPTION_KEY": "medis-secure-key-2024"
+  },
+  "functions": {
+    "app/**": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}

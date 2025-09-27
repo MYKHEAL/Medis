@@ -43,6 +43,11 @@ export default function AdminDashboard() {
     
     try {
       const registryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID || '0x0';
+      if (registryId === '0x0' || registryId === 'undefined') {
+        console.error('❌ Missing HOSPITAL_REGISTRY_ID environment variable');
+        setRegistrationError('Configuration error: Missing HOSPITAL_REGISTRY_ID environment variable.');
+        return;
+      }
       
       // First check if hospital is already registered
       setIsCheckingRegistration(true);
@@ -59,6 +64,11 @@ export default function AdminDashboard() {
       }
 
       const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID || '0x0';
+      if (adminCapId === '0x0' || adminCapId === 'undefined') {
+        console.error('❌ Missing ADMIN_CAP_ID environment variable');
+        alert('Admin configuration error: Missing ADMIN_CAP_ID. Please check environment variables.');
+        return;
+      }
       const clockId = '0x6';
 
       console.log('🔍 Admin dashboard: Starting registration...');

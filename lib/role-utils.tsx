@@ -51,7 +51,7 @@ export function useUserRole(): UserRole {
         const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID;
         console.log('🔧 Admin Cap ID from env:', adminCapId);
         
-        if (adminCapId && adminCapId !== '0x0') {
+        if (adminCapId && adminCapId !== '0x0' && adminCapId !== 'undefined') {
           try {
             const adminCapObject = await client.getObject({
               id: adminCapId,
@@ -80,14 +80,16 @@ export function useUserRole(): UserRole {
             console.log('⚠️ Error checking admin role:', error);
           }
         } else {
-          console.log('❌ No AdminCap ID configured');
+          console.log('❌ No valid AdminCap ID configured (value:', adminCapId, ')');
         }
 
         // === HOSPITAL CHECK ===
         const hospitalRegistryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID;
         const packageId = process.env.NEXT_PUBLIC_PACKAGE_ID;
         
-        if (hospitalRegistryId && packageId) {
+        if (hospitalRegistryId && packageId && 
+            hospitalRegistryId !== '0x0' && packageId !== '0x0' &&
+            hospitalRegistryId !== 'undefined' && packageId !== 'undefined') {
           try {
             const result = await client.devInspectTransactionBlock({
               transactionBlock: (() => {
@@ -121,10 +123,12 @@ export function useUserRole(): UserRole {
           } catch (error) {
             console.log('⚠️ Error checking hospital role:', error);
           }
+        } else {
+          console.log('❌ Missing hospital registry or package ID (registry:', hospitalRegistryId, 'package:', packageId, ')');
         }
 
         // === PATIENT CHECK ===
-        if (packageId) {
+        if (packageId && packageId !== '0x0' && packageId !== 'undefined') {
           try {
             const ownedObjects = await client.getOwnedObjects({
               owner: account.address,
@@ -145,6 +149,8 @@ export function useUserRole(): UserRole {
           } catch (error) {
             console.log('⚠️ Error checking patient role:', error);
           }
+        } else {
+          console.log('❌ No valid package ID for patient check (value:', packageId, ')');
         }
 
         // Default to patient if no other roles (connected users can be potential patients)
