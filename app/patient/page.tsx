@@ -6,11 +6,9 @@ import { Users, FileText, Download, ArrowLeft, Building2, Calendar, Shield, Eye,
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMedicalRecordsContract } from '@/lib/contract-utils';
-import { useUserRole } from '@/lib/role-utils';
 import { useIPFS } from '@/lib/ipfs-utils';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { gradients, animations, shadows } from '@/lib/ui-utils';
 
 interface MedicalRecord {
@@ -26,7 +24,6 @@ interface MedicalRecord {
 
 export default function PatientDashboard() {
   const account = useCurrentAccount();
-  const userRole = useUserRole();
   const { getOwnedRecords } = useMedicalRecordsContract();
   const { downloadMedicalRecord, createDownloadUrl, revokeDownloadUrl } = useIPFS();
   
@@ -173,33 +170,6 @@ export default function PatientDashboard() {
               Please connect your wallet to view your medical records
             </p>
             <ConnectButton />
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Show loading state while checking user role
-  if (userRole.isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
-        </div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative z-10"
-        >
-          <Card variant="glass" className="max-w-md w-full p-8 text-center">
-            <LoadingSpinner size="lg" className="mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-4">Loading Dashboard</h2>
-            <p className="text-slate-300">
-              Preparing your medical records...
-            </p>
           </Card>
         </motion.div>
       </div>

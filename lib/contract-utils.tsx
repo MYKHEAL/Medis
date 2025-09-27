@@ -48,59 +48,34 @@ export function useMedicalRecordsContract() {
     console.log('Hospital Name:', hospitalName);
     console.log('Clock ID:', clockId);
     
-    try {
-      const tx = new Transaction();
-      
-      tx.moveCall({
-        target: `${CONTRACT_CONFIG.packageId}::${CONTRACT_CONFIG.moduleName}::register_hospital`,
-        arguments: [
-          tx.object(adminCapId),
-          tx.object(registryId),
-          tx.pure.address(hospitalAddress),
-          tx.pure.string(hospitalName),
-          tx.object(clockId),
-        ],
-      });
+    const tx = new Transaction();
+    
+    tx.moveCall({
+      target: `${CONTRACT_CONFIG.packageId}::${CONTRACT_CONFIG.moduleName}::register_hospital`,
+      arguments: [
+        tx.object(adminCapId),
+        tx.object(registryId),
+        tx.pure.address(hospitalAddress),
+        tx.pure.string(hospitalName),
+        tx.object(clockId),
+      ],
+    });
 
-      return new Promise((resolve, reject) => {
-        signAndExecute(
-          { transaction: tx },
-          {
-            onSuccess: (result) => {
-              console.log('✅ Registration successful:', result);
-              resolve(result);
-            },
-            onError: (error) => {
-              console.error('❌ Registration failed:', error);
-              
-              // Enhanced error handling
-              let userMessage = 'Transaction failed. ';
-              
-              if (error?.message) {
-                if (error.message.includes('User rejected')) {
-                  userMessage = 'Transaction was cancelled by user.';
-                } else if (error.message.includes('Insufficient gas')) {
-                  userMessage = 'Insufficient gas. Please try again.';
-                } else if (error.message.includes('network')) {
-                  userMessage = 'Network error. Check your connection and try again.';
-                } else if (error.message.includes('Invalid object')) {
-                  userMessage = 'Invalid object reference. Please refresh and try again.';
-                } else {
-                  userMessage += error.message;
-                }
-              }
-              
-              const enhancedError = new Error(userMessage);
-              enhancedError.cause = error;
-              reject(enhancedError);
-            },
-          }
-        );
-      });
-    } catch (error) {
-      console.error('❌ Transaction setup failed:', error);
-      throw new Error('Failed to prepare transaction. Please check your wallet connection.');
-    }
+    return new Promise((resolve, reject) => {
+      signAndExecute(
+        { transaction: tx },
+        {
+          onSuccess: (result) => {
+            console.log('✅ Registration successful:', result);
+            resolve(result);
+          },
+          onError: (error) => {
+            console.error('❌ Registration failed:', error);
+            reject(error);
+          },
+        }
+      );
+    });
   };
 
   // Hospital functions
@@ -112,60 +87,29 @@ export function useMedicalRecordsContract() {
     timestamp: number,
     clockId: string
   ) => {
-    try {
-      const tx = new Transaction();
-      
-      tx.moveCall({
-        target: `${CONTRACT_CONFIG.packageId}::${CONTRACT_CONFIG.moduleName}::issue_record`,
-        arguments: [
-          tx.object(registryId),
-          tx.object(recordRegistryId),
-          tx.pure.address(patientAddress),
-          tx.pure.string(ipfsHash),
-          tx.pure.u64(timestamp),
-          tx.object(clockId),
-        ],
-      });
+    const tx = new Transaction();
+    
+    tx.moveCall({
+      target: `${CONTRACT_CONFIG.packageId}::${CONTRACT_CONFIG.moduleName}::issue_record`,
+      arguments: [
+        tx.object(registryId),
+        tx.object(recordRegistryId),
+        tx.pure.address(patientAddress),
+        tx.pure.string(ipfsHash),
+        tx.pure.u64(timestamp),
+        tx.object(clockId),
+      ],
+    });
 
-      return new Promise((resolve, reject) => {
-        signAndExecute(
-          { transaction: tx },
-          {
-            onSuccess: (result) => {
-              console.log('✅ Record issued successfully:', result);
-              resolve(result);
-            },
-            onError: (error) => {
-              console.error('❌ Record issuance failed:', error);
-              
-              // Enhanced error handling
-              let userMessage = 'Failed to issue medical record. ';
-              
-              if (error?.message) {
-                if (error.message.includes('User rejected')) {
-                  userMessage = 'Transaction was cancelled by user.';
-                } else if (error.message.includes('Insufficient gas')) {
-                  userMessage = 'Insufficient gas. Please get more SUI tokens and try again.';
-                } else if (error.message.includes('network')) {
-                  userMessage = 'Network error. Check your connection and try again.';
-                } else if (error.message.includes('not registered')) {
-                  userMessage = 'Hospital not registered. Please contact admin.';
-                } else {
-                  userMessage += error.message;
-                }
-              }
-              
-              const enhancedError = new Error(userMessage);
-              enhancedError.cause = error;
-              reject(enhancedError);
-            },
-          }
-        );
-      });
-    } catch (error) {
-      console.error('❌ Transaction setup failed:', error);
-      throw new Error('Failed to prepare transaction. Please check your wallet connection.');
-    }
+    return new Promise((resolve, reject) => {
+      signAndExecute(
+        { transaction: tx },
+        {
+          onSuccess: (result) => resolve(result),
+          onError: (error) => reject(error),
+        }
+      );
+    });
   };
 
   // Query functions

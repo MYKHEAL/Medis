@@ -12,14 +12,11 @@ import {
   SparklesIcon,
   LockClosedIcon,
   GlobeAltIcon,
-  ArrowRightIcon,
-  ExclamationTriangleIcon
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { cn, gradients, shadows } from '@/lib/ui-utils';
-import { useUserRole, getRoleDisplayName, getAvailableRoutes } from '@/lib/role-utils';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -60,7 +57,6 @@ const floatingAnimation = {
 
 export default function Home() {
   const account = useCurrentAccount();
-  const userRole = useUserRole();
   
   // Disable complex animations on slower devices
   const prefersReducedMotion = typeof window !== 'undefined' && 
@@ -70,48 +66,6 @@ export default function Home() {
   const fastItemVariants = prefersReducedMotion ? 
     { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.2 } } } : 
     itemVariants;
-
-  const availableRoutes = getAvailableRoutes(userRole);
-
-  const getIconComponent = (routePath: string) => {
-    switch (routePath) {
-      case '/admin':
-        return ShieldCheckIcon;
-      case '/hospital':
-        return BuildingOffice2Icon;
-      case '/patient':
-        return UserGroupIcon;
-      default:
-        return DocumentTextIcon;
-    }
-  };
-
-  const getColorClasses = (color: string) => {
-    const colorMap = {
-      purple: {
-        border: 'group-hover:border-purple-500/50',
-        bg: 'bg-gradient-to-br from-purple-500/10 to-indigo-500/10',
-        text: 'group-hover:text-purple-200',
-        accent: 'text-purple-300',
-        hover: 'group-hover:text-purple-400'
-      },
-      emerald: {
-        border: 'group-hover:border-emerald-500/50',
-        bg: 'bg-gradient-to-br from-emerald-500/10 to-teal-500/10',
-        text: 'group-hover:text-emerald-200',
-        accent: 'text-emerald-300',
-        hover: 'group-hover:text-emerald-400'
-      },
-      pink: {
-        border: 'group-hover:border-pink-500/50',
-        bg: 'bg-gradient-to-br from-pink-500/10 to-rose-500/10',
-        text: 'group-hover:text-pink-200',
-        accent: 'text-pink-300',
-        hover: 'group-hover:text-pink-400'
-      }
-    };
-    return colorMap[color as keyof typeof colorMap] || colorMap.purple;
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden will-change-auto">
@@ -206,126 +160,108 @@ export default function Home() {
         </motion.div>
 
         {account ? (
-          userRole.isLoading ? (
-            // Loading state while checking user role
-            <motion.div 
-              className="text-center py-20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <Card variant="glass" className="max-w-md mx-auto bg-white/5">
-                <CardContent className="text-center py-12">
-                  <LoadingSpinner size="lg" className="mx-auto mb-6" />
-                  <CardTitle className="text-white mb-4">
-                    Loading Your Dashboard
-                  </CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Checking your role and permissions...
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ) : availableRoutes.length > 0 ? (
-            // Show available dashboards based on user role
-            <>
-              <motion.div 
-                className="text-center mb-12"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <h3 className="text-2xl font-bold text-white mb-2">
-                  Welcome, {getRoleDisplayName(userRole)}
-                </h3>
-                <p className="text-gray-300">
-                  Access your {availableRoutes.length > 1 ? 'dashboards' : 'dashboard'} below
-                </p>
-              </motion.div>
-              
-              <motion.div 
-                className={`grid gap-8 mb-20 ${availableRoutes.length === 1 ? 'max-w-md mx-auto' : availableRoutes.length === 2 ? 'md:grid-cols-2 max-w-4xl mx-auto' : 'md:grid-cols-3'}`}
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                {availableRoutes.map((route, index) => {
-                  const IconComponent = getIconComponent(route.path);
-                  const colorClasses = getColorClasses(route.color);
-                  
-                  return (
-                    <motion.div key={route.path} variants={fastItemVariants}>
-                      <Link href={route.path} className="group block">
-                        <Card 
-                          variant="glass" 
-                          hover 
-                          className={`${colorClasses.border} transition-all duration-300 ${colorClasses.bg}`}
-                        >
-                          <CardHeader>
-                            <div className="flex items-center justify-between mb-4">
-                              <div className={cn("p-4 rounded-2xl", `bg-gradient-to-br ${route.gradient}`, shadows.glow)}>
-                                <IconComponent className="w-8 h-8 text-white" />
-                              </div>
-                              <ArrowRightIcon className={`w-5 h-5 text-gray-400 ${colorClasses.hover} group-hover:translate-x-1 transition-all`} />
-                            </div>
-                            <CardTitle className={`text-white ${colorClasses.text} transition-colors`}>
-                              {route.name}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <CardDescription className="text-gray-300 mb-4">
-                              {route.description}
-                            </CardDescription>
-                            <div className={`flex items-center ${colorClasses.accent} text-sm font-medium`}>
-                              <span>Access Portal</span>
-                              <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            </>
-          ) : (
-            // Show message for users without any role
-            <motion.div 
-              className="text-center py-20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <Card variant="glass" className="max-w-lg mx-auto bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
-                <CardContent className="text-center py-12">
-                  <motion.div
-                    animate={floatingAnimation}
-                    className="mb-6"
-                  >
-                    <ExclamationTriangleIcon className="w-16 h-16 text-amber-400 mx-auto" />
-                  </motion.div>
-                  <CardTitle className="text-white mb-4">
-                    No Access Permissions
-                  </CardTitle>
-                  <CardDescription className="text-gray-300 mb-6">
-                    Your wallet address is not registered in the system. Please contact:
-                  </CardDescription>
-                  <div className="space-y-3 text-sm">
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-gray-400 mb-1">For Hospital Registration:</p>
-                      <p className="text-white font-mono text-xs break-all">
-                        Admin: {process.env.NEXT_PUBLIC_ADMIN_CAP_ID ? '0x1752472acb1d642828805f8276710ce57b82c471a429f8af1a889d487f5cf29e' : 'Not configured'}
-                      </p>
+          <motion.div 
+            className="grid md:grid-cols-3 gap-8 mb-20"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {/* Admin Dashboard */}
+            <motion.div variants={fastItemVariants}>
+              <Link href="/admin" className="group block">
+                <Card 
+                  variant="glass" 
+                  hover 
+                  className="group-hover:border-purple-500/50 transition-all duration-300 bg-gradient-to-br from-purple-500/10 to-indigo-500/10"
+                >
+                  <CardHeader>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={cn("p-4 rounded-2xl", "bg-gradient-to-br from-purple-500 to-indigo-600", shadows.glow)}>
+                        <ShieldCheckIcon className="w-8 h-8 text-white" />
+                      </div>
+                      <ArrowRightIcon className="w-5 h-5 text-gray-400 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
                     </div>
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-gray-400 mb-1">As a Patient:</p>
-                      <p className="text-white">Visit any registered hospital to receive your first medical record</p>
+                    <CardTitle className="text-white group-hover:text-purple-200 transition-colors">
+                      Admin Portal
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-gray-300 mb-4">
+                      Register hospitals, manage system permissions, and monitor platform activity.
+                    </CardDescription>
+                    <div className="flex items-center text-purple-300 text-sm font-medium">
+                      <span>Manage System</span>
+                      <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             </motion.div>
-          )
+
+            {/* Hospital Dashboard */}
+            <motion.div variants={fastItemVariants}>
+              <Link href="/hospital" className="group block">
+                <Card 
+                  variant="glass" 
+                  hover 
+                  className="group-hover:border-emerald-500/50 transition-all duration-300 bg-gradient-to-br from-emerald-500/10 to-teal-500/10"
+                >
+                  <CardHeader>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={cn("p-4 rounded-2xl", "bg-gradient-to-br from-emerald-500 to-teal-600", shadows.glow)}>
+                        <BuildingOffice2Icon className="w-8 h-8 text-white" />
+                      </div>
+                      <ArrowRightIcon className="w-5 h-5 text-gray-400 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                    </div>
+                    <CardTitle className="text-white group-hover:text-emerald-200 transition-colors">
+                      Hospital Portal
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-gray-300 mb-4">
+                      Issue encrypted medical records, manage patient data, and track healthcare delivery.
+                    </CardDescription>
+                    <div className="flex items-center text-emerald-300 text-sm font-medium">
+                      <span>Issue Records</span>
+                      <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+
+            {/* Patient Dashboard */}
+            <motion.div variants={fastItemVariants}>
+              <Link href="/patient" className="group block">
+                <Card 
+                  variant="glass" 
+                  hover 
+                  className="group-hover:border-pink-500/50 transition-all duration-300 bg-gradient-to-br from-pink-500/10 to-rose-500/10"
+                >
+                  <CardHeader>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={cn("p-4 rounded-2xl", "bg-gradient-to-br from-pink-500 to-rose-600", shadows.glow)}>
+                        <UserGroupIcon className="w-8 h-8 text-white" />
+                      </div>
+                      <ArrowRightIcon className="w-5 h-5 text-gray-400 group-hover:text-pink-400 group-hover:translate-x-1 transition-all" />
+                    </div>
+                    <CardTitle className="text-white group-hover:text-pink-200 transition-colors">
+                      Patient Portal
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-gray-300 mb-4">
+                      Access your medical records, download files, and manage your healthcare data.
+                    </CardDescription>
+                    <div className="flex items-center text-pink-300 text-sm font-medium">
+                      <span>View Records</span>
+                      <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          </motion.div>
         ) : (
           <motion.div 
             className="text-center py-20"

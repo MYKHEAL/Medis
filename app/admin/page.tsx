@@ -1,22 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShieldCheckIcon, 
   BuildingOffice2Icon, 
   PlusIcon, 
-  ArrowLeftIcon,
-  ExclamationTriangleIcon
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useMedicalRecordsContract } from '@/lib/contract-utils';
-import { useUserRole } from '@/lib/role-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { WalletTroubleshooting } from '@/components/WalletTroubleshooting';
 import { cn, gradients, shadows } from '@/lib/ui-utils';
 
 interface HospitalRegistration {
@@ -27,7 +23,6 @@ interface HospitalRegistration {
 
 export default function AdminDashboard() {
   const account = useCurrentAccount();
-  const userRole = useUserRole();
   const { registerHospital } = useMedicalRecordsContract();
   
   const [hospitalForm, setHospitalForm] = useState({
@@ -36,16 +31,12 @@ export default function AdminDashboard() {
   });
   const [isRegistering, setIsRegistering] = useState(false);
   const [registeredHospitals, setRegisteredHospitals] = useState<HospitalRegistration[]>([]);
-  const [lastError, setLastError] = useState<Error | null>(null);
-  const [showTroubleshooting, setShowTroubleshooting] = useState(false);
 
   const handleRegisterHospital = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!account || !hospitalForm.name || !hospitalForm.address) return;
 
     setIsRegistering(true);
-    setLastError(null);
-    
     try {
       const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID || '0x0';
       const registryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID || '0x0';
@@ -66,22 +57,8 @@ export default function AdminDashboard() {
       };
       setRegisteredHospitals([...registeredHospitals, newHospital]);
       setHospitalForm({ name: '', address: '' });
-      
-      // Success notification
-      alert(`Hospital "${hospitalForm.name}" registered successfully!`);
     } catch (error) {
       console.error('Error registering hospital:', error);
-      const err = error as Error;
-      setLastError(err);
-      
-      // Show user-friendly error message
-      if (err.message.includes('cancelled') || err.message.includes('rejected')) {
-        // User cancelled, don't show error popup
-        return;
-      }
-      
-      // Show troubleshooting for other errors
-      setShowTroubleshooting(true);
     } finally {
       setIsRegistering(false);
     }
@@ -109,86 +86,6 @@ export default function AdminDashboard() {
                 Please connect your admin wallet to access the control panel
               </p>
               <ConnectButton />
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Show loading state while checking user role
-  if (userRole.isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        >
-          <Card variant="glass" className="max-w-md w-full bg-white/10 backdrop-blur-xl">
-            <CardContent className="text-center py-12">
-              <LoadingSpinner size="lg" className="mx-auto mb-6" />
-              <CardTitle className="text-white mb-4 text-2xl">Verifying Access</CardTitle>
-              <p className="text-gray-300 text-lg">
-                Checking your admin permissions...
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Show access denied for non-admin users
-  if (!userRole.isAdmin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        >
-          <Card variant="glass" className="max-w-lg w-full bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/20">
-            <CardContent className="text-center py-12">
-              <motion.div
-                animate={{
-                  y: [-5, 5],
-                  transition: {
-                    y: {
-                      duration: 4,
-                      repeat: Infinity,
-                      repeatType: "reverse" as const,
-                      ease: "easeInOut" as const,
-                    },
-                  },
-                }}
-                className="mb-6"
-              >
-                <ExclamationTriangleIcon className="w-16 h-16 text-red-400 mx-auto" />
-              </motion.div>
-              <CardTitle className="text-white mb-4 text-2xl">Access Denied</CardTitle>
-              <p className="text-gray-300 mb-6 text-lg">
-                You don't have administrator privileges to access this control panel.
-              </p>
-              <div className="space-y-4">
-                <div className="bg-white/5 rounded-lg p-4 text-sm">
-                  <p className="text-gray-400 mb-2">Your connected address:</p>
-                  <p className="text-white font-mono break-all">{account.address}</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-4 text-sm">
-                  <p className="text-gray-400 mb-2">Current admin address:</p>
-                  <p className="text-white font-mono break-all">0x1752472acb1d642828805f8276710ce57b82c471a429f8af1a889d487f5cf29e</p>
-                </div>
-              </div>
-              <div className="mt-8 flex gap-4 justify-center">
-                <Link href="/">
-                  <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-white/10">
-                    <ArrowLeftIcon className="w-4 h-4 mr-2" />
-                    Back to Home
-                  </Button>
-                </Link>
-                <ConnectButton />
-              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -448,13 +345,6 @@ export default function AdminDashboard() {
           </Card>
         </motion.div>
       </main>
-      
-      {/* Wallet Troubleshooting Modal */}
-      <WalletTroubleshooting 
-        isVisible={showTroubleshooting}
-        onClose={() => setShowTroubleshooting(false)}
-        error={lastError}
-      />
     </div>
   );
 }
