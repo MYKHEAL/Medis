@@ -11,6 +11,7 @@ import FileUpload from '@/components/FileUpload';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
+import { NetworkStatusIndicator } from '@/components/NetworkStatusIndicator';
 import { gradients, animations, shadows } from '@/lib/ui-utils';
 
 interface IssuedRecord {
@@ -45,18 +46,63 @@ export default function HospitalDashboard() {
           const registryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID || '0x0';
           console.log('🏥 Checking hospital registration for:', account.address);
           
-          const result = await isRegisteredHospital(registryId, account.address);
-          console.log('🏥 Hospital registration result:', result);
+          // Add timeout and retry mechanism
+          const maxRetries = 3;
+          let lastError: any = null;
           
-          setIsRegistered(result);
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              const result = await isRegisteredHospital(registryId, account.address);
+              console.log('🏥 Hospital registration result:', result);
+              setIsRegistered(result);
+              return; // Success, exit the retry loop
+            } catch (error: any) {
+              console.error(`Error checking registration (attempt ${attempt}/${maxRetries}):`, error);
+              lastError = error;
+              
+              // If this is the last attempt, show the error
+              if (attempt === maxRetries) {
+                throw error;
+              }
+              
+              // Wait before retrying (exponential backoff)
+              const delay = Math.pow(2, attempt) * 1000;
+              console.log(`⏳ Waiting ${delay}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          }
         } catch (error) {
           console.error('Error checking registration:', error);
+          // Show error state but don't block the UI completely
           setIsRegistered(false);
         }
       }
     };
     checkRegistration();
   }, [account, isRegisteredHospital]);
+
+  // Function to manually refresh registration status
+  const refreshRegistrationStatus = async () => {
+    if (!account) return;
+    
+    try {
+      const registryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID || '0x0';
+      console.log('🔄 Refreshing hospital registration status for:', account.address);
+      
+      const result = await isRegisteredHospital(registryId, account.address);
+      console.log('🏥 Hospital registration result (refresh):', result);
+      setIsRegistered(result);
+      
+      if (result) {
+        alert('Hospital registration verified! You can now access the dashboard.');
+      } else {
+        alert('Hospital not registered. Please contact the admin to register your hospital.');
+      }
+    } catch (error) {
+      console.error('Error refreshing registration:', error);
+      alert('Error checking registration status. Please try again.');
+    }
+  };
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
@@ -218,21 +264,28 @@ export default function HospitalDashboard() {
             </motion.div>
             <h2 className="text-2xl font-bold text-white mb-4">Hospital Not Registered</h2>
             <p className="text-slate-300 mb-4">
-              Your wallet address <code className="bg-red-900/30 px-2 py-1 rounded text-xs">{account.address.slice(0, 6)}...{account.address.slice(-4)}</code> is not registered as a hospital.
+              Your wallet address <code className="bg-red-900/30 px-2 py-1 rounded text-xs">{formatAddress(account.address)}</code> is not registered as a hospital.
             </p>
             <div className="bg-red-900/20 rounded-lg p-4 mb-6 text-left">
               <p className="text-red-300 font-semibold mb-2">To get registered:</p>
               <ol className="text-red-200 text-sm space-y-1 list-decimal list-inside">
                 <li>Contact the system administrator</li>
-                <li>Provide your wallet address: <code className="bg-red-900/30 px-1 rounded text-xs">{account.address}</code></li>
+                <li>Provide your wallet address: <code className="bg-red-900/30 px-1 rounded text-xs break-all">{account.address}</code></li>
                 <li>Wait for admin to register your hospital in the system</li>
-                <li>Refresh this page after registration</li>
               </ol>
             </div>
-            <Link href="/" className="inline-flex items-center justify-center h-11 px-6 text-base rounded-xl font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Return to Home
-            </Link>
+            <div className="space-y-3">
+              <Button
+                onClick={refreshRegistrationStatus}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                Check Registration Status Again
+              </Button>
+              <Link href="/" className="inline-flex items-center justify-center w-full h-11 px-6 text-base rounded-xl font-semibold bg-white/10 text-white hover:bg-white/20 transition-all duration-200">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Return to Home
+              </Link>
+            </div>
           </Card>
         </motion.div>
       </div>
@@ -282,8 +335,11 @@ export default function HospitalDashboard() {
                 </div>
               </motion.div>
             </div>
-            <div className="backdrop-blur-sm bg-white/10 rounded-xl p-2">
-              <ConnectButton />
+            <div className="flex items-center space-x-4">
+              <NetworkStatusIndicator />
+              <div className="backdrop-blur-sm bg-white/10 rounded-xl p-2">
+                <ConnectButton />
+              </div>
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { useMedicalRecordsContract } from '@/lib/contract-utils';
 import { useIPFS } from '@/lib/ipfs-utils';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { NetworkStatusIndicator } from '@/components/NetworkStatusIndicator';
 import { gradients, animations, shadows } from '@/lib/ui-utils';
 
 interface MedicalRecord {
@@ -248,8 +249,11 @@ export default function PatientDashboard() {
                 </div>
               </motion.div>
             </div>
-            <div className="backdrop-blur-sm bg-white/10 rounded-xl p-2">
-              <ConnectButton />
+            <div className="flex items-center space-x-4">
+              <NetworkStatusIndicator />
+              <div className="backdrop-blur-sm bg-white/10 rounded-xl p-2">
+                <ConnectButton />
+              </div>
             </div>
           </div>
         </div>

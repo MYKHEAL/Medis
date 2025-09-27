@@ -3,6 +3,7 @@
 import React from 'react';
 import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   UserGroupIcon, 
@@ -18,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { DeploymentStatusCheck } from '@/components/DeploymentStatusCheck';
+import { NetworkStatusIndicator } from '@/components/NetworkStatusIndicator';
 import { cn, gradients, shadows } from '@/lib/ui-utils';
 import { useUserRole, getRoleDisplayName, getAvailableRoutes, useAutoRedirect } from '@/lib/role-utils';
 
@@ -75,6 +77,7 @@ export default function Home() {
     itemVariants;
 
   const availableRoutes = getAvailableRoutes(userRole);
+  const router = useRouter();
 
   const getIconComponent = (routePath: string) => {
     switch (routePath) {
@@ -149,7 +152,10 @@ export default function Home() {
                 <p className="text-gray-400 text-sm">Decentralized Medical Records</p>
               </div>
             </motion.div>
-            <ConnectButton />
+            <div className="flex items-center space-x-4">
+              <NetworkStatusIndicator />
+              <ConnectButton />
+            </div>
           </div>
         </div>
       </motion.header>
@@ -281,6 +287,11 @@ export default function Home() {
                 <p className="text-gray-300">
                   Choose your {availableRoutes.length > 1 ? 'preferred dashboard' : 'dashboard'}
                 </p>
+                {userRole.isHospital && (
+                  <p className="text-emerald-300 text-sm mt-2">
+                    💡 Note: You'll be verified as a registered hospital before accessing the dashboard
+                  </p>
+                )}
               </motion.div>
               
               <motion.div 
@@ -317,7 +328,9 @@ export default function Home() {
                               {route.description}
                             </CardDescription>
                             <div className={`flex items-center ${colorClasses.accent} text-sm font-medium`}>
-                              <span>Access Portal</span>
+                              <span>
+                                {route.path === '/hospital' ? 'Verify & Access' : 'Access Portal'}
+                              </span>
                               <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                             </div>
                           </CardContent>

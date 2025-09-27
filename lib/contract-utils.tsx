@@ -53,65 +53,98 @@ export function useMedicalRecordsContract() {
 
   // Helper function to check if hospital is registered
   const isRegisteredHospital = async (registryId: string, hospitalAddress: string): Promise<boolean> => {
-    try {
-      console.log('🔍 Checking hospital registration for:', hospitalAddress);
-      console.log('🏥 Using registry ID:', registryId);
-      
-      const result = await client.devInspectTransactionBlock({
-        transactionBlock: (() => {
-          const tx = new Transaction();
-          tx.moveCall({
-            target: `${CONTRACT_CONFIG.packageId}::${CONTRACT_CONFIG.moduleName}::is_registered_hospital`,
-            arguments: [
-              tx.object(registryId),
-              tx.pure.address(hospitalAddress),
-            ],
-          });
-          return tx;
-        })(),
-        sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      });
-      
-      console.log('📋 Raw inspection result:', JSON.stringify(result, null, 2));
-      
-      // Parse the boolean result from the smart contract
-      if (result.results && result.results.length > 0 && 
-          result.results[0].returnValues && result.results[0].returnValues.length > 0) {
-        const returnValue = result.results[0].returnValues[0] as any;
-        console.log('🔍 Hospital registration check result:', returnValue);
+    const maxRetries = 3;
+    let lastError: any = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔍 Checking hospital registration for: ${hospitalAddress} (attempt ${attempt}/${maxRetries})`);
+        console.log('🏥 Using registry ID:', registryId);
         
-        // Handle different possible return formats
-        if (Array.isArray(returnValue)) {
-          const isRegistered = returnValue.length > 0 && (returnValue[0] === 1 || returnValue[0] === true);
-          console.log('🏥 Hospital registration status (array):', isRegistered);
-          return isRegistered;
-        } else {
-          const isRegistered = returnValue === 1 || returnValue === true;
-          console.log('🏥 Hospital registration status (direct):', isRegistered);
-          return isRegistered;
+        // Add timeout to prevent hanging on network issues
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('RPC request timeout')), 15000); // 15 second timeout
+        });
+        
+        const rpcCallPromise = client.devInspectTransactionBlock({
+          transactionBlock: (() => {
+            const tx = new Transaction();
+            tx.moveCall({
+              target: `${CONTRACT_CONFIG.packageId}::${CONTRACT_CONFIG.moduleName}::is_registered_hospital`,
+              arguments: [
+                tx.object(registryId),
+                tx.pure.address(hospitalAddress),
+              ],
+            });
+            return tx;
+          })(),
+          sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        });
+        
+        const result = await Promise.race([rpcCallPromise, timeoutPromise]) as any;
+        
+        console.log('📋 Raw inspection result:', JSON.stringify(result, null, 2));
+        
+        // Parse the boolean result from the smart contract
+        if (result.results && result.results.length > 0 && 
+            result.results[0].returnValues && result.results[0].returnValues.length > 0) {
+          const returnValue = result.results[0].returnValues[0] as any;
+          console.log('🔍 Hospital registration check result:', returnValue);
+          
+          // Handle different possible return formats
+          if (Array.isArray(returnValue)) {
+            const isRegistered = returnValue.length > 0 && (returnValue[0] === 1 || returnValue[0] === true);
+            console.log('🏥 Hospital registration status (array):', isRegistered);
+            return isRegistered;
+          } else {
+            const isRegistered = returnValue === 1 || returnValue === true;
+            console.log('🏥 Hospital registration status (direct):', isRegistered);
+            return isRegistered;
+          }
         }
+        
+        console.log('⚠️ No valid return values, assuming not registered');
+        return false;
+      } catch (error: any) {
+        console.error(`❌ Error checking hospital registration (attempt ${attempt}/${maxRetries}):`, error);
+        lastError = error;
+        
+        // If this is the last attempt, handle the error
+        if (attempt === maxRetries) {
+          // More specific error handling
+          if (error.message) {
+            if (error.message.includes('Failed to fetch')) {
+              console.error('🌐 Network error - RPC connection failed after retries');
+              throw new Error('Network connection failed. Please check your internet connection and try again.');
+            }
+            
+            if (error.message.includes('timeout')) {
+              console.error('⏱️ RPC request timeout after retries');
+              throw new Error('RPC request timeout. The network may be slow or unavailable. Please try again.');
+            }
+            
+            if (error.message.includes('MoveAbort')) {
+              console.error('📜 Smart contract error during registration check');
+              // If the check itself fails due to contract error, we should stop
+              throw new Error('Smart contract check failed. Please verify the registry configuration.');
+            }
+          }
+          
+          // For other errors, throw to be handled by caller
+          throw new Error(`Registration check failed: ${error.message || 'Unknown error'}`);
+        }
+        
+        // Wait before retrying (exponential backoff with jitter)
+        const baseDelay = 1000;
+        const maxDelay = 8000;
+        const delay = Math.min(baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000, maxDelay);
+        console.log(`⏳ Waiting ${Math.round(delay)}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-      
-      console.log('⚠️ No valid return values, assuming not registered');
-      return false;
-    } catch (error: any) {
-      console.error('❌ Error checking hospital registration:', error);
-      
-      // More specific error handling
-      if (error.message && error.message.includes('Failed to fetch')) {
-        console.error('🌐 Network error - RPC connection failed');
-        throw new Error('Network connection failed. Please check your internet connection and try again.');
-      }
-      
-      if (error.message && error.message.includes('MoveAbort')) {
-        console.error('📜 Smart contract error during registration check');
-        // If the check itself fails due to contract error, we should stop
-        throw new Error('Smart contract check failed. Please verify the registry configuration.');
-      }
-      
-      // For other errors, throw to be handled by caller
-      throw new Error(`Registration check failed: ${error.message || 'Unknown error'}`);
     }
+    
+    // This should never be reached, but just in case
+    throw new Error(`Registration check failed after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
   };
 
   // Admin functions

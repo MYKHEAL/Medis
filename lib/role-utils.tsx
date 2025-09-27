@@ -65,10 +65,17 @@ export function useUserRole(): UserRole {
           
           if (adminCapId && adminCapId !== '0x0' && adminCapId !== 'undefined') {
             try {
-              const adminCapObject = await client.getObject({
+              // Add timeout for AdminCap check
+              const adminCapPromise = client.getObject({
                 id: adminCapId,
                 options: { showOwner: true, showContent: true },
               });
+              
+              const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('AdminCap check timeout')), 10000);
+              });
+              
+              const adminCapObject = await Promise.race([adminCapPromise, timeoutPromise]) as any;
               
               console.log('👑 AdminCap object:', adminCapObject);
               
@@ -90,6 +97,7 @@ export function useUserRole(): UserRole {
               }
             } catch (error) {
               console.log('⚠️ Error checking admin role via AdminCap:', error);
+              // Don't fail completely on AdminCap error, continue checking other roles
             }
           } else {
             console.log('❌ No valid AdminCap ID configured (value:', adminCapId, ')');
@@ -104,7 +112,8 @@ export function useUserRole(): UserRole {
             hospitalRegistryId !== '0x0' && packageId !== '0x0' &&
             hospitalRegistryId !== 'undefined' && packageId !== 'undefined') {
           try {
-            const result = await client.devInspectTransactionBlock({
+            // Add timeout for hospital check
+            const hospitalCheckPromise = client.devInspectTransactionBlock({
               transactionBlock: (() => {
                 const tx = new Transaction();
                 tx.moveCall({
@@ -118,6 +127,12 @@ export function useUserRole(): UserRole {
               })(),
               sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
             });
+            
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Hospital check timeout')), 15000);
+            });
+            
+            const result = await Promise.race([hospitalCheckPromise, timeoutPromise]) as any;
             
             console.log('🏥 Hospital check result:', result);
             
@@ -135,6 +150,7 @@ export function useUserRole(): UserRole {
             }
           } catch (error) {
             console.log('⚠️ Error checking hospital role:', error);
+            // Don't fail completely on hospital check error, continue checking other roles
           }
         } else {
           console.log('❌ Missing hospital registry or package ID (registry:', hospitalRegistryId, 'package:', packageId, ')');
@@ -143,13 +159,20 @@ export function useUserRole(): UserRole {
         // === PATIENT CHECK ===
         if (packageId && packageId !== '0x0' && packageId !== 'undefined') {
           try {
-            const ownedObjects = await client.getOwnedObjects({
+            // Add timeout for patient check
+            const patientCheckPromise = client.getOwnedObjects({
               owner: account.address,
               filter: {
                 StructType: `${packageId}::medical_records::MedicalRecord`,
               },
               options: { showContent: true },
             });
+            
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Patient check timeout')), 15000);
+            });
+            
+            const ownedObjects = await Promise.race([patientCheckPromise, timeoutPromise]) as any;
             
             console.log('📋 Medical records owned:', ownedObjects.data.length);
             
@@ -161,6 +184,7 @@ export function useUserRole(): UserRole {
             }
           } catch (error) {
             console.log('⚠️ Error checking patient role:', error);
+            // Don't fail completely on patient check error
           }
         } else {
           console.log('❌ No valid package ID for patient check (value:', packageId, ')');

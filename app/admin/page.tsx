@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { useMedicalRecordsContract } from '@/lib/contract-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { NetworkStatusIndicator } from '@/components/NetworkStatusIndicator';
 import { cn, gradients, shadows } from '@/lib/ui-utils';
 
 interface HospitalRegistration {
@@ -59,8 +60,22 @@ export default function AdminDashboard() {
           setRegistrationError(`Hospital with address ${hospitalForm.address} is already registered in the system.`);
           return;
         }
-      } catch (checkError) {
-        console.warn('Could not verify existing registration, proceeding with registration:', checkError);
+      } catch (checkError: any) {
+        console.error('❌ Pre-registration check failed:', checkError);
+        // Stop registration if network error or other critical error
+        if (checkError && checkError.message) {
+          if (checkError.message.includes('Network connection failed') || 
+              checkError.message.includes('Failed to fetch') ||
+              checkError.message.includes('RPC request timeout')) {
+            setRegistrationError('Cannot verify hospital registration status due to network issues. Please check your internet connection and try again.');
+            return;
+          } else if (checkError.message.includes('Smart contract check failed')) {
+            setRegistrationError('Smart contract configuration error. Please verify the registry settings and try again.');
+            return;
+          }
+        }
+        // For other errors, warn but allow to proceed (as a fallback)
+        console.warn('⚠️ Could not verify existing registration, proceeding with registration:', checkError);
       } finally {
         setIsCheckingRegistration(false);
       }
@@ -107,45 +122,51 @@ export default function AdminDashboard() {
       console.error('Error registering hospital:', error);
       
       // Handle specific error types
-      if (error.message && error.message.includes('timeout')) {
-        setRegistrationError('Registration timed out. Please check your wallet connection and try again.');
-      } else if (error.message && error.message.includes('Network connection failed')) {
-        setRegistrationError('Network error: Cannot connect to Sui RPC. Please check your internet connection and try again.');
-      } else if (error.message && error.message.includes('Smart contract check failed')) {
-        setRegistrationError('Smart contract configuration error. Please verify the registry settings and try again.');
-      } else if (error.message && error.message.includes('already registered')) {
-        setRegistrationError(`Hospital address ${hospitalForm.address} is already registered in the system. Please use a different address.`);
-      } else if (error.message && error.message.includes('MoveAbort')) {
-        const match = error.message.match(/MoveAbort.*?(\d+)/);
-        if (match) {
-          const errorCode = match[1];
-          switch (errorCode) {
-            case '1':
-              setRegistrationError('Access denied: Admin privileges required. Make sure you\'re using the correct admin wallet.');
-              break;
-            case '3':
-              setRegistrationError(`Hospital address ${hospitalForm.address} is already registered in the system. This address was previously registered and cannot be registered again. Please use a different wallet address.`);
-              break;
-            case '2':
-              setRegistrationError('Invalid hospital registry. Please check the system configuration.');
-              break;
-            default:
-              setRegistrationError(`Registration failed with smart contract error code: ${errorCode}. Please contact support.`);
+      if (error.message) {
+        if (error.message.includes('timeout')) {
+          setRegistrationError('Registration timed out. Please check your wallet connection and try again.');
+        } else if (error.message.includes('Network connection failed') || 
+                   error.message.includes('Failed to fetch') ||
+                   error.message.includes('RPC request timeout')) {
+          setRegistrationError('Network error: Cannot connect to Sui RPC. Please check your internet connection and try again.');
+        } else if (error.message.includes('Smart contract check failed')) {
+          setRegistrationError('Smart contract configuration error. Please verify the registry settings and try again.');
+        } else if (error.message.includes('already registered')) {
+          setRegistrationError(`Hospital address ${hospitalForm.address} is already registered in the system. Please use a different address.`);
+        } else if (error.message.includes('MoveAbort')) {
+          const match = error.message.match(/MoveAbort.*?(\d+)/);
+          if (match) {
+            const errorCode = match[1];
+            switch (errorCode) {
+              case '1':
+                setRegistrationError('Access denied: Admin privileges required. Make sure you\'re using the correct admin wallet.');
+                break;
+              case '3':
+                setRegistrationError(`Hospital address ${hospitalForm.address} is already registered in the system. This address was previously registered and cannot be registered again. Please use a different wallet address.`);
+                break;
+              case '2':
+                setRegistrationError('Invalid hospital registry. Please check the system configuration.');
+                break;
+              default:
+                setRegistrationError(`Registration failed with smart contract error code: ${errorCode}. Please contact support.`);
+            }
+          } else {
+            setRegistrationError('Registration failed due to a smart contract error. Please try again.');
+          }
+        } else if (error.message.includes('TRPCClientError')) {
+          // Handle wallet errors specifically
+          if (error.message.includes('MoveAbort') && error.message.includes('3')) {
+            setRegistrationError(`Hospital address ${hospitalForm.address} is already registered. This wallet was previously added to the system.`);
+          } else if (error.message.includes('Failed to fetch') || error.message.includes('Network')) {
+            setRegistrationError('Network error: Cannot connect to blockchain. Please check your internet connection and try again.');
+          } else {
+            setRegistrationError('Wallet transaction failed. Please check your connection and try again.');
           }
         } else {
-          setRegistrationError('Registration failed due to a smart contract error. Please try again.');
-        }
-      } else if (error.message && error.message.includes('TRPCClientError')) {
-        // Handle wallet errors specifically
-        if (error.message.includes('MoveAbort') && error.message.includes('3')) {
-          setRegistrationError(`Hospital address ${hospitalForm.address} is already registered. This wallet was previously added to the system.`);
-        } else if (error.message.includes('Failed to fetch')) {
-          setRegistrationError('Network error: Cannot connect to blockchain. Please check your internet connection and try again.');
-        } else {
-          setRegistrationError('Wallet transaction failed. Please check your connection and try again.');
+          setRegistrationError(error.message || 'Failed to register hospital. Please check your wallet connection and try again.');
         }
       } else {
-        setRegistrationError(error.message || 'Failed to register hospital. Please check your wallet connection and try again.');
+        setRegistrationError('Failed to register hospital. Please check your wallet connection and try again.');
       }
     } finally {
       setIsRegistering(false);
@@ -231,7 +252,10 @@ export default function AdminDashboard() {
                 <p className="text-gray-300">Manage hospitals and system administration</p>
               </div>
             </div>
-            <ConnectButton />
+            <div className="flex items-center space-x-4">
+              <NetworkStatusIndicator />
+              <ConnectButton />
+            </div>
           </div>
         </div>
       </motion.header>
