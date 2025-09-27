@@ -7,8 +7,18 @@ import { getFullnodeUrl } from '@mysten/sui/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 
-// Create a react-query client
-const queryClient = new QueryClient();
+// Create a react-query client with optimized settings for faster wallet connections
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      retryDelay: 300,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10, // 10 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Network configuration for Sui
 const networks = {
@@ -28,7 +38,7 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
   return (
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networks} defaultNetwork={defaultNetwork}>
-        <WalletProvider>
+        <WalletProvider autoConnect>
           {children}
         </WalletProvider>
       </SuiClientProvider>
