@@ -52,6 +52,12 @@ export default function AdminDashboard() {
         return;
       }
       
+      // Validate hospital address format
+      if (!hospitalForm.address.startsWith('0x') || hospitalForm.address.length !== 66) {
+        setRegistrationError('Invalid hospital address format. Please enter a valid Sui wallet address (0x... with 64 hex characters).');
+        return;
+      }
+      
       // First check if hospital is already registered
       setIsCheckingRegistration(true);
       try {
@@ -116,7 +122,7 @@ export default function AdminDashboard() {
       setHospitalForm({ name: '', address: '' });
       
       // Show success message
-      alert(`Hospital "${hospitalForm.name}" registered successfully!`);
+      alert(`Hospital "${hospitalForm.name}" registered successfully! The hospital can now access the hospital dashboard.`);
       
     } catch (error: any) {
       console.error('Error registering hospital:', error);

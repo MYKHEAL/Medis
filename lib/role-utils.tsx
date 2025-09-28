@@ -50,177 +50,203 @@ export function useUserRole(): UserRole {
         isPatient: false,
       };
 
-      try {
-        // === ADMIN CHECK ===
-        // Hardcoded admin address for guaranteed access
-        const ADMIN_ADDRESS = '0x1752472acb1d642828805f8276710ce57b82c471a429f8af1a889d487f5cf29e';
-        
-        if (account.address === ADMIN_ADDRESS) {
-          roles.isAdmin = true;
-          console.log('✅ USER IS HARDCODED ADMIN!');
-        } else {
-          // Also check AdminCap ownership as secondary method
-          const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID;
-          console.log('🔧 Admin Cap ID from env:', adminCapId);
+      // Retry mechanism for role checking
+      const maxRetries = 3;
+      let lastError: any = null;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // === ADMIN CHECK ===
+          // Hardcoded admin address for guaranteed access
+          const ADMIN_ADDRESS = '0x1752472acb1d642828805f8276710ce57b82c471a429f8af1a889d487f5cf29e';
           
-          if (adminCapId && adminCapId !== '0x0' && adminCapId !== 'undefined') {
+          if (account.address === ADMIN_ADDRESS) {
+            roles.isAdmin = true;
+            console.log('✅ USER IS HARDCODED ADMIN!');
+          } else {
+            // Also check AdminCap ownership as secondary method
+            const adminCapId = process.env.NEXT_PUBLIC_ADMIN_CAP_ID;
+            console.log('🔧 Admin Cap ID from env:', adminCapId);
+            
+            if (adminCapId && adminCapId !== '0x0' && adminCapId !== 'undefined') {
+              try {
+                // Add timeout for AdminCap check
+                const adminCapPromise = client.getObject({
+                  id: adminCapId,
+                  options: { showOwner: true, showContent: true },
+                });
+                
+                const timeoutPromise = new Promise((_, reject) => {
+                  setTimeout(() => reject(new Error('AdminCap check timeout')), 10000);
+                });
+                
+                const adminCapObject = await Promise.race([adminCapPromise, timeoutPromise]) as any;
+                
+                console.log('👑 AdminCap object:', adminCapObject);
+                
+                if (adminCapObject.data?.owner && 
+                    typeof adminCapObject.data.owner === 'object' &&
+                    'AddressOwner' in adminCapObject.data.owner) {
+                  const ownerAddress = adminCapObject.data.owner.AddressOwner;
+                  console.log('👑 AdminCap owner:', ownerAddress);
+                  console.log('👤 Current user:', account.address);
+                  
+                  if (ownerAddress === account.address) {
+                    roles.isAdmin = true;
+                    console.log('✅ USER IS ADMIN via AdminCap!');
+                  } else {
+                    console.log('❌ User is NOT admin via AdminCap');
+                  }
+                } else {
+                  console.log('❌ AdminCap has no valid owner');
+                }
+              } catch (error) {
+                console.log('⚠️ Error checking admin role via AdminCap:', error);
+                // Don't fail completely on AdminCap error, continue checking other roles
+              }
+            } else {
+              console.log('❌ No valid AdminCap ID configured (value:', adminCapId, ')');
+            }
+          }
+
+          // === HOSPITAL CHECK ===
+          const hospitalRegistryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID;
+          const packageId = process.env.NEXT_PUBLIC_PACKAGE_ID;
+          
+          if (hospitalRegistryId && packageId && 
+              hospitalRegistryId !== '0x0' && packageId !== '0x0' &&
+              hospitalRegistryId !== 'undefined' && packageId !== 'undefined') {
             try {
-              // Add timeout for AdminCap check
-              const adminCapPromise = client.getObject({
-                id: adminCapId,
-                options: { showOwner: true, showContent: true },
+              // Add timeout for hospital check
+              const hospitalCheckPromise = client.devInspectTransactionBlock({
+                transactionBlock: (() => {
+                  const tx = new Transaction();
+                  tx.moveCall({
+                    target: `${packageId}::medical_records::is_registered_hospital`,
+                    arguments: [
+                      tx.object(hospitalRegistryId),
+                      tx.pure.address(account.address),
+                    ],
+                  });
+                  return tx;
+                })(),
+                sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
               });
               
               const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('AdminCap check timeout')), 10000);
+                setTimeout(() => reject(new Error('Hospital check timeout')), 15000);
               });
               
-              const adminCapObject = await Promise.race([adminCapPromise, timeoutPromise]) as any;
+              const result = await Promise.race([hospitalCheckPromise, timeoutPromise]) as any;
               
-              console.log('👑 AdminCap object:', adminCapObject);
+              console.log('🏥 Hospital check result:', result);
               
-              if (adminCapObject.data?.owner && 
-                  typeof adminCapObject.data.owner === 'object' &&
-                  'AddressOwner' in adminCapObject.data.owner) {
-                const ownerAddress = adminCapObject.data.owner.AddressOwner;
-                console.log('👑 AdminCap owner:', ownerAddress);
-                console.log('👤 Current user:', account.address);
+              if (result.results?.[0]?.returnValues?.[0]) {
+                const returnValue = result.results[0].returnValues[0] as any;
+                // Boolean is returned as [1] for true, [0] for false
+                const isHospital = Array.isArray(returnValue) && returnValue.length > 0 && (returnValue[0][0] === 1 || returnValue[0] === 1);
                 
-                if (ownerAddress === account.address) {
-                  roles.isAdmin = true;
-                  console.log('✅ USER IS ADMIN via AdminCap!');
+                if (isHospital) {
+                  roles.isHospital = true;
+                  console.log('✅ USER IS HOSPITAL!');
                 } else {
-                  console.log('❌ User is NOT admin via AdminCap');
+                  console.log('❌ User is NOT hospital');
                 }
               } else {
-                console.log('❌ AdminCap has no valid owner');
+                console.log('⚠️ No valid return values from hospital check');
               }
             } catch (error) {
-              console.log('⚠️ Error checking admin role via AdminCap:', error);
-              // Don't fail completely on AdminCap error, continue checking other roles
+              console.log('⚠️ Error checking hospital role:', error);
+              // Don't fail completely on hospital check error, continue checking other roles
+              throw error; // Re-throw to trigger retry
             }
           } else {
-            console.log('❌ No valid AdminCap ID configured (value:', adminCapId, ')');
+            console.log('❌ Missing hospital registry or package ID (registry:', hospitalRegistryId, 'package:', packageId, ')');
           }
-        }
 
-        // === HOSPITAL CHECK ===
-        const hospitalRegistryId = process.env.NEXT_PUBLIC_HOSPITAL_REGISTRY_ID;
-        const packageId = process.env.NEXT_PUBLIC_PACKAGE_ID;
-        
-        if (hospitalRegistryId && packageId && 
-            hospitalRegistryId !== '0x0' && packageId !== '0x0' &&
-            hospitalRegistryId !== 'undefined' && packageId !== 'undefined') {
-          try {
-            // Add timeout for hospital check
-            const hospitalCheckPromise = client.devInspectTransactionBlock({
-              transactionBlock: (() => {
-                const tx = new Transaction();
-                tx.moveCall({
-                  target: `${packageId}::medical_records::is_registered_hospital`,
-                  arguments: [
-                    tx.object(hospitalRegistryId),
-                    tx.pure.address(account.address),
-                  ],
-                });
-                return tx;
-              })(),
-              sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
-            });
-            
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error('Hospital check timeout')), 15000);
-            });
-            
-            const result = await Promise.race([hospitalCheckPromise, timeoutPromise]) as any;
-            
-            console.log('🏥 Hospital check result:', result);
-            
-            if (result.results?.[0]?.returnValues?.[0]) {
-              const returnValue = result.results[0].returnValues[0] as any;
-              // Boolean is returned as [1] for true, [0] for false
-              const isHospital = Array.isArray(returnValue) && returnValue.length > 0 && returnValue[0] === 1;
+          // === PATIENT CHECK ===
+          if (packageId && packageId !== '0x0' && packageId !== 'undefined') {
+            try {
+              // Add timeout for patient check
+              const patientCheckPromise = client.getOwnedObjects({
+                owner: account.address,
+                filter: {
+                  StructType: `${packageId}::medical_records::MedicalRecord`,
+                },
+                options: { showContent: true },
+              });
               
-              if (isHospital) {
-                roles.isHospital = true;
-                console.log('✅ USER IS HOSPITAL!');
+              const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Patient check timeout')), 15000);
+              });
+              
+              const ownedObjects = await Promise.race([patientCheckPromise, timeoutPromise]) as any;
+              
+              console.log('📋 Medical records owned:', ownedObjects.data?.length || 0);
+              
+              if (ownedObjects.data && ownedObjects.data.length > 0) {
+                roles.isPatient = true;
+                console.log('✅ USER IS PATIENT!');
               } else {
-                console.log('❌ User is NOT hospital');
+                console.log('❌ User has no medical records');
               }
+            } catch (error) {
+              console.log('⚠️ Error checking patient role:', error);
+              // Don't fail completely on patient check error
+              throw error; // Re-throw to trigger retry
             }
-          } catch (error) {
-            console.log('⚠️ Error checking hospital role:', error);
-            // Don't fail completely on hospital check error, continue checking other roles
+          } else {
+            console.log('❌ No valid package ID for patient check (value:', packageId, ')');
           }
-        } else {
-          console.log('❌ Missing hospital registry or package ID (registry:', hospitalRegistryId, 'package:', packageId, ')');
-        }
 
-        // === PATIENT CHECK ===
-        if (packageId && packageId !== '0x0' && packageId !== 'undefined') {
-          try {
-            // Add timeout for patient check
-            const patientCheckPromise = client.getOwnedObjects({
-              owner: account.address,
-              filter: {
-                StructType: `${packageId}::medical_records::MedicalRecord`,
-              },
-              options: { showContent: true },
-            });
-            
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error('Patient check timeout')), 15000);
-            });
-            
-            const ownedObjects = await Promise.race([patientCheckPromise, timeoutPromise]) as any;
-            
-            console.log('📋 Medical records owned:', ownedObjects.data.length);
-            
-            if (ownedObjects.data.length > 0) {
-              roles.isPatient = true;
-              console.log('✅ USER IS PATIENT!');
-            } else {
-              console.log('❌ User has no medical records');
-            }
-          } catch (error) {
-            console.log('⚠️ Error checking patient role:', error);
-            // Don't fail completely on patient check error
+          // Default to patient if no other roles (connected users can be potential patients)
+          if (!roles.isAdmin && !roles.isHospital && !roles.isPatient) {
+            roles.isPatient = true;
+            console.log('🏥 Defaulting to patient role');
           }
-        } else {
-          console.log('❌ No valid package ID for patient check (value:', packageId, ')');
-        }
 
-        // Default to patient if no other roles (connected users can be potential patients)
-        if (!roles.isAdmin && !roles.isHospital && !roles.isPatient) {
-          roles.isPatient = true;
-          console.log('🏥 Defaulting to patient role');
-        }
+          console.log('🎭 Final roles:', roles);
 
-        console.log('🎭 Final roles:', roles);
-
-        if (isMounted) {
-          const hasRole = roles.isAdmin || roles.isHospital || roles.isPatient;
-          const primaryRole = roles.isAdmin ? 'admin' : roles.isHospital ? 'hospital' : roles.isPatient ? 'patient' : null;
+          if (isMounted) {
+            const hasRole = roles.isAdmin || roles.isHospital || roles.isPatient;
+            // Priority order: Admin > Hospital > Patient
+            const primaryRole = roles.isAdmin ? 'admin' : roles.isHospital ? 'hospital' : roles.isPatient ? 'patient' : null;
+            
+            setRole({
+              ...roles,
+              isLoading: false,
+              hasRole,
+              primaryRole,
+            });
+          }
           
-          setRole({
-            ...roles,
-            isLoading: false,
-            hasRole,
-            primaryRole,
-          });
-        }
-      } catch (error) {
-        console.error('❌ Error in role detection:', error);
-        if (isMounted) {
-          // Default to patient role on error
-          setRole({
-            isAdmin: false,
-            isHospital: false,
-            isPatient: true,
-            isLoading: false,
-            hasRole: true,
-            primaryRole: 'patient',
-          });
+          // If we reach here, the attempt was successful, so break the retry loop
+          break;
+        } catch (error: any) {
+          console.error(`❌ Error in role detection (attempt ${attempt}/${maxRetries}):`, error);
+          lastError = error;
+          
+          // If this is the last attempt, handle the error
+          if (attempt === maxRetries) {
+            if (isMounted) {
+              // Default to patient role on error
+              setRole({
+                isAdmin: false,
+                isHospital: false,
+                isPatient: true,
+                isLoading: false,
+                hasRole: true,
+                primaryRole: 'patient',
+              });
+            }
+          } else {
+            // Wait before retrying (exponential backoff with jitter)
+            const baseDelay = 1000;
+            const maxDelay = 5000;
+            const delay = Math.min(baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000, maxDelay);
+            console.log(`⏳ Waiting ${Math.round(delay)}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
         }
       }
     };
@@ -325,7 +351,7 @@ export function useAutoRedirect(): void {
       // Use a small delay to ensure smooth UX
       setTimeout(() => {
         router.push(redirectPath);
-      }, 1000);
+      }, 1500);
     }
   }, [account, userRole, router, hasRedirected]);
 

@@ -75,6 +75,8 @@ export default function HospitalDashboard() {
           console.error('Error checking registration:', error);
           // Show error state but don't block the UI completely
           setIsRegistered(false);
+          // Show an alert to the user about the issue
+          alert('Error checking hospital registration status. Please refresh the page or contact admin if this persists.');
         }
       }
     };

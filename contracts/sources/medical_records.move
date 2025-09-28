@@ -229,6 +229,16 @@ module medis_dapp::medical_records {
         registry.admin
     }
 
+    /// Get hospital registry ID
+    public fun get_hospital_registry_id(registry: &HospitalRegistry): ID {
+        object::id(registry)
+    }
+
+    /// Get medical record registry ID
+    public fun get_record_registry_id(registry: &MedicalRecordRegistry): ID {
+        object::id(registry)
+    }
+
     // ===== Test-only functions =====
     #[test_only]
     public fun init_for_testing(ctx: &mut TxContext) {

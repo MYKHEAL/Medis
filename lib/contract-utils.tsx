@@ -60,6 +60,7 @@ export function useMedicalRecordsContract() {
       try {
         console.log(`🔍 Checking hospital registration for: ${hospitalAddress} (attempt ${attempt}/${maxRetries})`);
         console.log('🏥 Using registry ID:', registryId);
+        console.log('📦 Package ID:', CONTRACT_CONFIG.packageId);
         
         // Add timeout to prevent hanging on network issues
         const timeoutPromise = new Promise((_, reject) => {
@@ -93,7 +94,12 @@ export function useMedicalRecordsContract() {
           
           // Handle different possible return formats
           if (Array.isArray(returnValue)) {
-            const isRegistered = returnValue.length > 0 && (returnValue[0] === 1 || returnValue[0] === true);
+            // The return value format is [Uint8Array, typeTag]
+            // The boolean value is in the first element of the Uint8Array
+            const isRegistered = returnValue.length > 0 && 
+                               Array.isArray(returnValue[0]) && 
+                               returnValue[0].length > 0 && 
+                               (returnValue[0][0] === 1 || returnValue[0][0] === true);
             console.log('🏥 Hospital registration status (array):', isRegistered);
             return isRegistered;
           } else {

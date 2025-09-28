@@ -15,7 +15,7 @@ module medis_dapp::medical_records_tests {
         let scenario = &mut scenario_val;
 
         // Initialize the module
-        medical_records::init_for_testing(test_scenario::ctx(scenario));
+        medical_records::init_for_testing(test_scenario::context(scenario));
 
         test_scenario::next_tx(scenario, ADMIN);
         {
@@ -32,13 +32,13 @@ module medis_dapp::medical_records_tests {
         let scenario = &mut scenario_val;
 
         // Initialize the module
-        medical_records::init_for_testing(test_scenario::ctx(scenario));
+        medical_records::init_for_testing(test_scenario::context(scenario));
 
         test_scenario::next_tx(scenario, ADMIN);
         {
             let admin_cap = test_scenario::take_from_sender<AdminCap>(scenario);
-            let registry = test_scenario::take_shared<HospitalRegistry>(scenario);
-            let clock = clock::create_for_testing(test_scenario::ctx(scenario));
+            let mut registry = test_scenario::take_shared_mut<HospitalRegistry>(scenario);
+            let clock = clock::create_for_testing(test_scenario::context(scenario));
 
             medical_records::register_hospital(
                 &admin_cap,
@@ -46,7 +46,7 @@ module medis_dapp::medical_records_tests {
                 HOSPITAL,
                 b"Test Hospital",
                 &clock,
-                test_scenario::ctx(scenario)
+                test_scenario::context(scenario)
             );
 
             // Verify hospital is registered
@@ -66,14 +66,14 @@ module medis_dapp::medical_records_tests {
         let scenario = &mut scenario_val;
 
         // Initialize the module
-        medical_records::init_for_testing(test_scenario::ctx(scenario));
+        medical_records::init_for_testing(test_scenario::context(scenario));
 
         // Register hospital first
         test_scenario::next_tx(scenario, ADMIN);
         {
             let admin_cap = test_scenario::take_from_sender<AdminCap>(scenario);
-            let registry = test_scenario::take_shared<HospitalRegistry>(scenario);
-            let clock = clock::create_for_testing(test_scenario::ctx(scenario));
+            let mut registry = test_scenario::take_shared_mut<HospitalRegistry>(scenario);
+            let clock = clock::create_for_testing(test_scenario::context(scenario));
 
             medical_records::register_hospital(
                 &admin_cap,
@@ -81,7 +81,7 @@ module medis_dapp::medical_records_tests {
                 HOSPITAL,
                 b"Test Hospital",
                 &clock,
-                test_scenario::ctx(scenario)
+                test_scenario::context(scenario)
             );
 
             clock::destroy_for_testing(clock);
@@ -93,8 +93,8 @@ module medis_dapp::medical_records_tests {
         test_scenario::next_tx(scenario, HOSPITAL);
         {
             let registry = test_scenario::take_shared<HospitalRegistry>(scenario);
-            let record_registry = test_scenario::take_shared<MedicalRecordRegistry>(scenario);
-            let clock = clock::create_for_testing(test_scenario::ctx(scenario));
+            let mut record_registry = test_scenario::take_shared_mut<MedicalRecordRegistry>(scenario);
+            let clock = clock::create_for_testing(test_scenario::context(scenario));
 
             medical_records::issue_record(
                 &registry,
@@ -103,7 +103,7 @@ module medis_dapp::medical_records_tests {
                 b"QmTestHash123",
                 1234567890,
                 &clock,
-                test_scenario::ctx(scenario)
+                test_scenario::context(scenario)
             );
 
             clock::destroy_for_testing(clock);
@@ -114,7 +114,7 @@ module medis_dapp::medical_records_tests {
         // Check if patient received the record
         test_scenario::next_tx(scenario, PATIENT);
         {
-            assert!(test_scenario::has_most_recent_for_address<MedicalRecord>(PATIENT), 0);
+            assert!(test_scenario::has_most_recent_for_address<PATIENT, MedicalRecord>(), 0);
         };
 
         test_scenario::end(scenario_val);
@@ -127,14 +127,14 @@ module medis_dapp::medical_records_tests {
         let scenario = &mut scenario_val;
 
         // Initialize the module
-        medical_records::init_for_testing(test_scenario::ctx(scenario));
+        medical_records::init_for_testing(test_scenario::context(scenario));
 
         // Try to issue record without registering hospital
         test_scenario::next_tx(scenario, HOSPITAL);
         {
             let registry = test_scenario::take_shared<HospitalRegistry>(scenario);
-            let record_registry = test_scenario::take_shared<MedicalRecordRegistry>(scenario);
-            let clock = clock::create_for_testing(test_scenario::ctx(scenario));
+            let mut record_registry = test_scenario::take_shared_mut<MedicalRecordRegistry>(scenario);
+            let clock = clock::create_for_testing(test_scenario::context(scenario));
 
             medical_records::issue_record(
                 &registry,
@@ -143,7 +143,7 @@ module medis_dapp::medical_records_tests {
                 b"QmTestHash123",
                 1234567890,
                 &clock,
-                test_scenario::ctx(scenario)
+                test_scenario::context(scenario)
             );
 
             clock::destroy_for_testing(clock);
